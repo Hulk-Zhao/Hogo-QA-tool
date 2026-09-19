@@ -72,6 +72,97 @@ export interface OutlierCandidate {
   confirmed: boolean;
 }
 
+/** 审计记录持久化 key（跨会话保存 AI 调用审计，PRD P0-24）。 */
+export const AI_USAGE_LOG_STORAGE_KEY = 'hogo-qa-ai-usage-logs';
+
+/** 审计记录最多保留条数（防止 localStorage 无限增长；超出丢弃最旧）。 */
+export const MAX_AI_USAGE_LOGS = 500;
+
+/** 审计记录持久化窄接口（UI 层注入实现，store 自身不碰浏览器 API）。 */
+export interface AiUsageLogPersistence {
+  /** 读取并反序列化；缺失 / 损坏一律返回 null（不抛）。 */
+  load: () => AiUsageEntry[] | null;
+  /** 序列化并写入（失败由注入实现决定抛错或忽略）。 */
+  save: (logs: AiUsageEntry[]) => void;
+}
+
+/**
+ * 容错归一化审计记录数组。
+ *
+ * 处理三类脏数据（手动篡改 / 版本残留 / 字段缺失）：
+ * - 非数组 → 返回 null，调用方视为「无历史」；
+ * - 单条记录字段类型不符 → **丢弃该条**而非整份丢弃（其余合法记录继续可用）；
+ * - 超出条数上限 → 只保留最新 `MAX_AI_USAGE_LOGS` 条。
+ *
+ * 纯函数：不触碰 DOM / 存储，可独立单测。
+ *
+ * @param raw 反序列化后的原始值
+ * @returns 合法记录数组；`raw` 非数组时返回 null
+ */
+export function sanitizeAiUsageLogs(raw: unknown): AiUsageEntry[] | null {
+  if (!Array.isArray(raw)) {
+    return null;
+  }
+  const out: AiUsageEntry[] = [];
+  for (const item of raw) {
+    if (typeof item !== 'object' || item === null) {
+      continue;
+    }
+    const r = item as Record<string, unknown>;
+    const scope: AiUsageEntry['sentPayloadScope'] | null =
+      r.sentPayloadScope === 'summary' ? 'summary' : r.sentPayloadScope === 'raw' ? 'raw' : null;
+    if (
+      typeof r.id !== 'string' ||
+      r.id.length === 0 ||
+      typeof r.feature !== 'string' ||
+      scope === null ||
+      typeof r.model !== 'string' ||
+      typeof r.requestedAt !== 'string' ||
+      typeof r.ok !== 'boolean'
+    ) {
+      continue;
+    }
+    out.push({
+      id: r.id,
+      feature: r.feature as AiUsageEntry['feature'],
+      sentPayloadScope: scope,
+      model: r.model,
+      requestedAt: r.requestedAt,
+      ok: r.ok,
+      // 项目内审计记录带 projectId（schema.AiUsageLog）；存在则保真带回。
+      ...(typeof r.projectId === 'string' ? { projectId: r.projectId } : {}),
+    } as AiUsageEntry);
+  }
+  return out.slice(-MAX_AI_USAGE_LOGS);
+}
+
+/**
+ * 合并两份审计记录（按 id 去重、按时间升序、截断到上限）。
+ *
+ * 语义要点：这是**并集**而非「后者覆盖前者」——审计记录是「本机向 AI 发送过
+ * 哪些数据」的证据，任何一次合并都不允许丢证据。幂等（同一 id 重复合并不增长）。
+ *
+ * @param existing 已有记录
+ * @param incoming 新并入的记录
+ * @returns 合并后的记录（新的在后）
+ */
+export function mergeAiUsageLogs(
+  existing: readonly AiUsageEntry[],
+  incoming: readonly AiUsageEntry[],
+): AiUsageEntry[] {
+  const byId = new Map<string, AiUsageEntry>();
+  for (const log of existing) {
+    byId.set(log.id, log);
+  }
+  for (const log of incoming) {
+    byId.set(log.id, log);
+  }
+  const merged = [...byId.values()].sort((a, b) =>
+    a.requestedAt < b.requestedAt ? -1 : a.requestedAt > b.requestedAt ? 1 : 0,
+  );
+  return merged.slice(-MAX_AI_USAGE_LOGS);
+}
+
 interface ProjectState {
   /** 当前项目实体（含 datasets / analysisConfigs / aiUsageLogs）。 */
   project: Project | null;
@@ -148,14 +239,16 @@ export const useProjectStore = create<ProjectState>((set) => ({
   setProjectName: (name) => set({ projectName: name }),
 
   setProject: (project) =>
-    set({
+    set((s) => ({
       project,
       projectName: project.name,
       dataset: project.datasets[0] ?? null,
       selectedCharacteristicId: project.datasets[0]?.characteristics[0]?.id ?? null,
-      // 载入项目时同步审计记录（避免看到上一个项目残留的日志）。
-      aiUsageLogs: project.aiUsageLogs,
-    }),
+      // 载入项目时把项目内审计记录**并入**设备级审计历史（按 id 去重 + 截断）。
+      // 此前这里是整份替换：只要打开一个 aiUsageLogs 较短的项目，设备上已有的
+      // 审计证据就被抹掉（刷新后设置页审计表变空）——审计必须只增不减。
+      aiUsageLogs: mergeAiUsageLogs(s.aiUsageLogs, project.aiUsageLogs),
+    })),
 
   /**
    * 追加一条 AI 使用审计记录。
@@ -169,7 +262,7 @@ export const useProjectStore = create<ProjectState>((set) => ({
    */
   appendAiUsageLog: (entry) =>
     set((s) => {
-      const aiUsageLogs = [...s.aiUsageLogs, entry];
+      const aiUsageLogs = mergeAiUsageLogs(s.aiUsageLogs, [entry]);
       const current = s.project;
       if (!current) {
         return { aiUsageLogs };
@@ -240,6 +333,39 @@ export const useProjectStore = create<ProjectState>((set) => ({
       return { dataset: { ...s.dataset, characteristics } };
     }),
 }));
+
+/**
+ * 从持久化存储加载审计记录（启动时调用）。
+ *
+ * 需求出处（本轮 P1）：审计记录此前只存在于 `projectStore` 内存切片里，
+ * **刷新即清空**（实测 reload 后设置页「AI 使用审计」表为空），
+ * PRD P0-24 的「每次请求可审计」承诺无法在跨会话场景下验证。
+ *
+ * @param persistence 持久化实现（可注入；null 表示不持久化）
+ */
+export function hydrateAiUsageLogs(persistence: AiUsageLogPersistence | null): void {
+  if (!persistence) {
+    return;
+  }
+  const loaded = persistence.load();
+  if (!loaded) {
+    return;
+  }
+  const current = useProjectStore.getState().aiUsageLogs;
+  useProjectStore.setState({ aiUsageLogs: mergeAiUsageLogs(current, loaded) });
+}
+
+/**
+ * 保存当前审计记录到持久化存储。
+ *
+ * @param persistence 持久化实现
+ */
+export function persistAiUsageLogs(persistence: AiUsageLogPersistence | null): void {
+  if (!persistence) {
+    return;
+  }
+  persistence.save(useProjectStore.getState().aiUsageLogs);
+}
 
 /**
  * 从当前 dataset 中取出选中的特性。

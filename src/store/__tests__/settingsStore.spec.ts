@@ -106,7 +106,7 @@ describe('hydrate / persist 接线（注入持久层）', () => {
 
   it('persistAiConfig 把当前 maxTokens 写入注入的持久层', () => {
     const save = vi.fn();
-    const persistence: SettingsPersistence = { load: () => null, save };
+    const persistence: SettingsPersistence = { load: () => null, save, clear: vi.fn() };
     useSettingsStore.getState().setAiConfig({ maxTokens: 12345 });
 
     persistAiConfig(persistence);
@@ -126,7 +126,7 @@ describe('hydrate / persist 接线（注入持久层）', () => {
       disableThinking: true,
       allowRawData: false,
     };
-    const persistence: SettingsPersistence = { load: () => loaded, save: vi.fn() };
+    const persistence: SettingsPersistence = { load: () => loaded, save: vi.fn(), clear: vi.fn() };
 
     hydrateAiConfig(persistence);
 

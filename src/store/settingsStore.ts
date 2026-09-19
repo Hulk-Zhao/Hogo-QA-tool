@@ -84,6 +84,14 @@ export const PREFERENCES_STORAGE_KEY = 'hogo-qa-preferences';
 export interface SettingsPersistence {
   load: () => AiConfig | null;
   save: (config: AiConfig) => void;
+  /**
+   * 删除整键（「清除已保存的 AI 配置」用）。
+   *
+   * 与 `save` 的区别：`save(DEFAULT_AI_CONFIG)` 只把字段写空（密钥明文虽已
+   * 不在，但配置对象仍在）；`clear()` 把键彻底删掉，是本轮 P1-D
+   * 「把密钥从本机抹掉」的语义。契约：**不抛异常**。
+   */
+  clear: () => void;
 }
 
 /** 偏好持久化载荷。 */

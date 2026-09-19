@@ -42,6 +42,7 @@ import {
   useDiagnosisStore,
   type DiagnosisPersistence,
 } from '@/store/diagnosisStore';
+import { bootstrapAiUsageLogs, bootstrapProjectSession } from '@/ui/bootstrap/projectSession';
 import {
   PREFERENCES_STORAGE_KEY,
   SETTINGS_STORAGE_KEY,
@@ -233,6 +234,32 @@ export function bootstrapSettings(): void {
   bootstrapAiSettings();
   bootstrapPreferences();
   bootstrapDiagnosis();
+  // 项目会话：AI 审计落盘 + 上次项目自动恢复（异步、容错、绝不抛异常）。
+  bootstrapAiUsageLogs();
+  bootstrapProjectSession();
+}
+
+/**
+ * 清除已保存的 AI 配置（**主动擦除**明文密钥）。
+ *
+ * 需求出处（本轮 P1-D）：API Key 以明文存放于 localStorage 是 `file://` 形态下
+ * 唯一可用后端的已知权衡（设置页已有提示），但此前**没有一键擦除入口**——
+ * 用户想把密钥从本机抹掉只能手动改回空值（JSON 仍在，只是字段为空）。
+ *
+ * 顺序很关键：先 `resetMode()` 把内存配置复位（订阅会同步写回一份默认 JSON），
+ * 再 `clear()` 删掉整个键 —— 反过来会被订阅「复活」。
+ *
+ * @returns 是否成功擦除（存储不可用时返回 false，UI 据此提示）
+ */
+export function clearSavedAiConfig(): boolean {
+  useSettingsStore.getState().resetMode();
+  try {
+    getSettingsPersistence().clear();
+  } catch (err) {
+    console.warn('[settings] 清除已保存的 AI 配置失败：', err);
+    return false;
+  }
+  return getSettingsPersistence().load() === null;
 }
 
 /** 供测试断言「当前偏好」的快照（等价于 store 内部切片）。 */

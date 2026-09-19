@@ -17,10 +17,12 @@
  * `saving` / `lastSavedAt` 状态语义保持不变（T03 已验收）。
  */
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useProjectStore, buildProjectFromDataset } from '@/store/projectStore';
 import { useUiStore } from '@/store/uiStore';
-import { createRepositoryAsync, degradationHint, type RepositoryHandle } from '@/data/repositories';
+import { degradationHint } from '@/data/repositories';
+import { getSharedRepositoryHandle } from '@/data/repositories/handle';
+import { rememberLastProject } from '@/ui/bootstrap/projectSession';
 import { HogoError } from '@/data/errors';
 import type { Measurement } from '@/data/schema';
 import { makeBlobRef } from '@/data/storage/opfsStore';
@@ -60,22 +62,7 @@ export function useProjectPersistence(): ProjectPersistenceApi {
   const [saving, setSaving] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
 
-  // 仓库句柄在会话内复用（真实能力探测只做一次，异步）。
-  const handleRef = useRef<RepositoryHandle | null>(null);
-  const handlePromiseRef = useRef<Promise<RepositoryHandle> | null>(null);
-  const getHandle = useCallback(async (): Promise<RepositoryHandle> => {
-    if (handleRef.current !== null) {
-      return handleRef.current;
-    }
-    if (handlePromiseRef.current === null) {
-      handlePromiseRef.current = createRepositoryAsync().then((handle) => {
-        handleRef.current = handle;
-        return handle;
-      });
-    }
-    return handlePromiseRef.current;
-  }, []);
-
+  // 仓库句柄来自全应用共享单例（真实能力探测只做一次，后端选择会话内恒定）。
   const persist = useCallback(async () => {
     setSaving(true);
     beginLoading();
@@ -84,7 +71,7 @@ export function useProjectPersistence(): ProjectPersistenceApi {
         pushToast('暂无数据可保存', 'warning');
         return;
       }
-      const handle = await getHandle();
+      const handle = await getSharedRepositoryHandle();
       // 进入 `??` 右分支时 project 必为 null，无既有 id 可复用；
       // 与 projectStore.setDataset 的约定一致，统一用 'local' 作为本地项目 id。
       const entity = project ?? buildProjectFromDataset('local', projectName, dataset);
@@ -113,6 +100,8 @@ export function useProjectPersistence(): ProjectPersistenceApi {
       };
 
       await handle.repository.saveProject(persisted);
+      // 只有真正落盘成功才记「上次项目」：刷新后据此自动恢复数据集。
+      rememberLastProject(persisted.id);
       setLastSavedAt(persisted.updatedAt);
       const hint = degradationHint(handle);
       if (hint.length > 0) {
@@ -126,7 +115,7 @@ export function useProjectPersistence(): ProjectPersistenceApi {
       setSaving(false);
       endLoading();
     }
-  }, [dataset, project, projectName, getHandle, beginLoading, endLoading, pushToast]);
+  }, [dataset, project, projectName, beginLoading, endLoading, pushToast]);
 
   return { saving, lastSavedAt, persist };
 }

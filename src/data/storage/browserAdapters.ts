@@ -409,5 +409,24 @@ export class LocalStorageJsonStore<T> implements JsonStore<T> {
       });
     }
   }
+
+  /**
+   * 移除整键（清除已保存的密钥 / 配置）。
+   *
+   * 与 `save` 相反，本方法**绝不抛异常**：清除是「降低风险」的动作，
+   * 即使底层不可用（隐私模式 / 存储被禁用）也不应阻断 UI，
+   * 调用方可通过 `load() === null` 复核结果。
+   */
+  clear(): void {
+    const ls = getLocalStorage();
+    if (ls === null) {
+      return;
+    }
+    try {
+      ls.removeItem(this.key);
+    } catch {
+      // 访问即抛（隐私模式等）：静默忽略，不阻断清除流程。
+    }
+  }
 }
 

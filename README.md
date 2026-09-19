@@ -190,8 +190,46 @@ set OLLAMA_ORIGINS=* && set OLLAMA_CONTEXT_LENGTH=16384 && ollama serve
 | 判异准则 | ✅ | Western Electric W1–W4 + Nelson N1–N8，逐条开关（刷新后保持）、去重与等效标注 |
 | 报表导出 | ✅ | 导出范围 7 项逐项勾选（4 张表 + 3 张图，勾选状态刷新后保持）、图表内嵌打印、Excel ≥4 sheet（不含图片） |
 | AI 助手 | ✅ | OpenAI 兼容 API、三态探测、数据主权边界（默认仅发摘要）、AI 全面诊断（五节结构，可导出 Markdown） |
-| 设置 | ✅ | AI 配置与连通性测试、判异准则逐条开关、常数表展示（n=2..25）、AI 调用审计 |
-| 项目库 | ✅ | 搜索 / 打开 / 重命名 / 复制 / 删除（IndexedDB，降级 localStorage / 内存） |
+| 设置 | ✅ | AI 配置与连通性测试、**一键清除已保存配置**、判异准则逐条开关、常数表展示（n=2..25）、AI 调用审计（**跨会话保留**） |
+| 项目库 | ✅ | 搜索 / 打开 / 重命名 / 复制 / 删除（IndexedDB，降级 localStorage / 内存）；**刷新 / 重开后自动恢复上次项目** |
+
+## 安全与风险边界
+
+本工具默认离线、数据不出本机，但仍有三处**已知边界**需要用户知情：
+
+### 1. API Key 以明文存于本机浏览器（localStorage）
+
+`file://` 双击离线形态下没有可用的加密后端，密钥只能以明文写入
+`localStorage["hogo-qa-settings"]`（设置页已在 API Key 下方明示）。风险与对策：
+
+- 影响面：仅本机浏览器配置目录；本工具**不会**把密钥发往任何非用户配置的地址。
+- **一键擦除**：「设置」页 → 「清除已保存的 AI 配置」，会删除整个
+  `hogo-qa-settings` 键（不是把字段写空），并同步复位内存中的配置。
+- 建议：公用/共享电脑上用完后点一次该按钮；不要在多人共用的浏览器配置里长期保存生产密钥。
+
+### 2. xlsx@0.18.5 的原型污染风险（CVE-2023-30533）
+
+导入旧工具 xlsx 依赖 SheetJS `0.18.5`——npm registry 上可安装的最后一个版本
+（0.19.3+ 只发布在 SheetJS 自有 CDN）。因此导入器在**出口**做了独立于版本的防护：
+
+- 解析前后对比 `Object.prototype`，删除被注入的属性，并在导入结果里给出
+  「该文件尝试污染全局对象原型（已拦截并清理：…）」告警；
+- 单元格出口白名单：只放行 `string | number | null`，对象 / 数组 / 函数一律当空值。
+
+中期动作：评估迁移到 `exceljs`（见 `.workbuddy/memory/2026-09-19-P0优化记录.md` 第九节风险项）。
+
+### 3. 本机存储键清单（便于审计与手工清理）
+
+| localStorage 键 | 内容 |
+|---|---|
+| `hogo-qa-settings` | AI 配置（含明文 API Key） |
+| `hogo-qa-preferences` | 判异准则 12 条开关 + 报表导出范围 7 项 |
+| `hogo-qa-diagnosis` | AI 全面诊断报告（最新一份） |
+| `hogo-qa-ai-usage-logs` | AI 调用审计记录（最多 500 条，只增不减） |
+| `hogo-qa-last-project` | 上次保存 / 打开的项目 id（启动自动恢复用） |
+
+项目实体与测量值不在上述键中：走 IndexedDB（`projects` / `measurements`），
+IndexedDB 不可用时降级 localStorage，再不可用则仅内存（UI 会提示导出 JSON）。
 
 ## 数据主权
 

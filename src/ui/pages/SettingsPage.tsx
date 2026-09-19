@@ -44,6 +44,7 @@ import { useSettingsStore, MIN_MAX_TOKENS } from '@/store/settingsStore';
 import { buildStamp } from '@/ui/buildStamp';
 import { useProjectStore } from '@/store/projectStore';
 import { useAiAvailability } from '@/ui/hooks/useAiAvailability';
+import { clearSavedAiConfig } from '@/ui/bootstrap/settingsBootstrap';
 import { USAGE_FEATURE_LABEL, USAGE_SCOPE_LABEL } from '@/services/ai';
 
 /** 常数表展示行。 */
@@ -100,6 +101,14 @@ export default function SettingsPage(): ReactElement {
   const toggles = useSettingsStore((s) => s.rulesConfig);
   const setRule = useSettingsStore((s) => s.setRule);
   const [testResult, setTestResult] = useState<'idle' | 'ok' | 'fail'>('idle');
+  /** 「清除已保存的 AI 配置」结果（点击后给出可见反馈）。 */
+  const [clearResult, setClearResult] = useState<'idle' | 'ok' | 'fail'>('idle');
+
+  const handleClearAiConfig = (): void => {
+    const ok = clearSavedAiConfig();
+    setClearResult(ok ? 'ok' : 'fail');
+    setTestResult('idle');
+  };
 
   const constants = useMemo<ConstantRow[]>(() => {
     const raw = getAllConstantsRaw();
@@ -182,6 +191,31 @@ export default function SettingsPage(): ReactElement {
               API 密钥以<b>明文</b>仅保存在本机浏览器（localStorage），不会上传到任何服务器；
               配置修改后<b>自动保存</b>，下次打开自动载入；更换设备需重新填写。
             </Typography>
+            <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mt: -1 }}>
+              <Button
+                size="small"
+                variant="outlined"
+                color="inherit"
+                data-testid="clear-ai-config"
+                onClick={handleClearAiConfig}
+              >
+                清除已保存的 AI 配置
+              </Button>
+              {clearResult === 'ok' ? (
+                <Typography
+                  variant="caption"
+                  color="success.main"
+                  data-testid="clear-ai-config-result"
+                >
+                  已从本机浏览器中删除
+                </Typography>
+              ) : null}
+              {clearResult === 'fail' ? (
+                <Typography variant="caption" color="error" data-testid="clear-ai-config-result">
+                  本机存储不可用，未能清除
+                </Typography>
+              ) : null}
+            </Stack>
             <TextField
               label="模型名"
               size="small"

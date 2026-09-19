@@ -39,28 +39,16 @@ import {
 } from '@mui/icons-material';
 import type { ReactElement } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  createRepositoryAsync,
-  degradationHint,
-  type RepositoryHandle,
-} from '@/data/repositories';
+import { degradationHint } from '@/data/repositories';
+import { getSharedRepositoryHandle } from '@/data/repositories/handle';
+import { forgetLastProject, rememberLastProject } from '@/ui/bootstrap/projectSession';
 import type { ProjectRepository } from '@/data/repositories/types';
 import type { Project, ProjectSummary } from '@/data/schema';
 import { useProjectStore } from '@/store/projectStore';
 import EmptyState from '@/ui/components/EmptyState';
 import ConfirmDialog from '@/ui/components/ConfirmDialog';
 
-/**
- * 惰性单例仓库句柄（与 useProjectPersistence 共用异步工厂，真实能力探测只做一次）。
- */
-let handlePromise: Promise<RepositoryHandle> | null = null;
-
-function getHandle(): Promise<RepositoryHandle> {
-  if (handlePromise === null) {
-    handlePromise = createRepositoryAsync();
-  }
-  return handlePromise;
-}
+/* 仓库句柄改由 `@/data/repositories/handle` 提供会话级单例（全应用共用同一后端）。 */
 
 /** 注入仓库且被标记降级时的兜底提示（无后端信息可用）。 */
 const FALLBACK_DEGRADED_HINT =
@@ -100,7 +88,7 @@ async function resolveRepository(
       hint: degraded ? FALLBACK_DEGRADED_HINT : '',
     };
   }
-  const handle = await getHandle();
+  const handle = await getSharedRepositoryHandle();
   return { repository: handle.repository, degraded: handle.degraded, hint: degradationHint(handle) };
 }
 
@@ -197,6 +185,8 @@ export default function ProjectLibraryPage(props: ProjectLibraryPageProps = {}):
       const project: Project | null = await repository.getProject(summary.id);
       if (project) {
         setProject(project);
+        // 记录恢复目标：下次启动（刷新 / 重开）自动载入该项目。
+        rememberLastProject(project.id);
         navigate('/import');
       } else {
         setError('项目不存在或已删除。');
@@ -228,6 +218,8 @@ export default function ProjectLibraryPage(props: ProjectLibraryPageProps = {}):
     const { repository } = repo;
     try {
       await repository.deleteProject(deleteTarget.id);
+      // 删掉的若正是「上次项目」，同步遗忘，避免下次启动空跑一次查询。
+      forgetLastProject(deleteTarget.id);
       setDeleteTarget(null);
       await refresh();
     } catch (e) {

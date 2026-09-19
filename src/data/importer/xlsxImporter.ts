@@ -12,6 +12,7 @@
 import * as XLSX from 'xlsx';
 import { HogoError } from '../errors';
 import { parseCountCell, parseNumericCell, cellToString } from './cellParsing';
+import { purgePrototypePollution, snapshotObjectPrototype, toSafeCell } from './prototypeGuard';
 import { requiredRoles, resolveRole } from './columnAliases';
 import { measurementLimitWarning } from './limits';
 import type { AutoMapResult, ColumnMapping, FieldRole, ParsedSheet, RawCell, RowError } from './types';
@@ -70,12 +71,13 @@ function sheetToParsed(sheetName: string, ws: XLSX.WorkSheet): ParsedSheet {
   if (matrix.length === 0) {
     return { sheetName, header: [], rows: [], firstDataRowNumber: 2 };
   }
-  const header = (matrix[0] ?? []).map((c) => cellToString(c));
+  // 出口白名单：`toSafeCell` 只放行 string | number | null（P1-C），
+  // 保证领域层永远拿不到对象 / 数组等非预期结构。
+  const header = (matrix[0] ?? []).map((c) => cellToString(toSafeCell(c)));
   const rows = matrix.slice(1).map((r) => {
     const out: RawCell[] = [];
     for (let i = 0; i < header.length; i += 1) {
-      const v = r[i];
-      out.push(v === undefined ? null : v);
+      out.push(toSafeCell(r[i]));
     }
     return out;
   });
@@ -221,17 +223,28 @@ function validateDefect(sheet: ParsedSheet, mapping: ColumnMapping): RowError[] 
  * @throws {HogoError} IMPORT_COLUMN_MISMATCH（必需列缺失且无法自动匹配）
  */
 export function parseXlsx(data: ArrayBuffer): XlsxParseOutput {
+  // P1-C 原型污染防线（CVE-2023-30533，xlsx 0.18.5 无修复版可装）：
+  // 解析前后对比 Object.prototype，把被注入的属性删掉并告警。
+  const prototypeBaseline = snapshotObjectPrototype();
   let wb: XLSX.WorkBook;
   try {
     wb = XLSX.read(data, { type: 'array' });
   } catch (e) {
+    // 解析抛错前也可能已经完成污染，同样要清理。
+    purgePrototypePollution(prototypeBaseline);
     throw new HogoError('IMPORT_PARSE_FAILED', 'xlsx 文件解析失败，请确认文件未损坏。', {
       cause: e instanceof Error ? e.message : String(e),
     });
   }
+  const pollutedKeys = purgePrototypePollution(prototypeBaseline);
 
   const errors: RowError[] = [];
   const warnings: string[] = [];
+  if (pollutedKeys.length > 0) {
+    warnings.push(
+      `安全提示：该文件尝试污染全局对象原型（已拦截并清理：${pollutedKeys.join('、')}），请确认文件来源可信。`,
+    );
+  }
   let dimensionSheet: ParsedSheet | null = null;
   let defectSheet: ParsedSheet | null = null;
 

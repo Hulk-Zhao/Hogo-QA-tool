@@ -26,6 +26,7 @@ function renderPage(): void {
 
 describe('SettingsPage', () => {
   beforeEach(() => {
+    localStorage.clear();
     useSettingsStore.getState().resetMode();
   });
 
@@ -81,5 +82,27 @@ describe('SettingsPage', () => {
     renderPage();
     expect(screen.getByText(/数据与隐私说明/)).toBeInTheDocument();
     expect(screen.getByText(/无任何外部网络请求/)).toBeInTheDocument();
+  });
+
+  it('「清除已保存的 AI 配置」按钮 → 删除 localStorage 键并给出可见反馈', () => {
+    localStorage.setItem(
+      'hogo-qa-settings',
+      JSON.stringify({
+        baseUrl: 'https://a.com/v1',
+        apiKey: 'sk-page-secret',
+        model: 'm',
+        maxTokens: 4096,
+        disableThinking: true,
+        allowRawData: false,
+      }),
+    );
+    useSettingsStore.getState().setAiConfig({ baseUrl: 'https://a.com/v1', apiKey: 'sk-page-secret' });
+    renderPage();
+
+    fireEvent.click(screen.getByTestId('clear-ai-config'));
+
+    expect(localStorage.getItem('hogo-qa-settings')).toBeNull();
+    expect(useSettingsStore.getState().aiConfig.apiKey).toBe('');
+    expect(screen.getByTestId('clear-ai-config-result').textContent).toContain('已从本机浏览器中删除');
   });
 });
