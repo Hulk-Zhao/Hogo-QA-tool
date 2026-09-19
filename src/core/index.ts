@@ -69,7 +69,16 @@ export {
   tQuantile,
   SQRT_2PI,
 } from './math/normalCdf';
-export { sortedAscending, sum, sumOfSquares, average, range, allFinite } from './math/matrix';
+export {
+  sortedAscending,
+  sum,
+  sumOfSquares,
+  average,
+  range,
+  maxOf,
+  minOf,
+  allFinite,
+} from './math/matrix';
 
 // stats
 export { mean, stdDev, median, rangeOf, skewness, kurtosis, sumOf } from './stats/descriptive';
@@ -90,6 +99,14 @@ export {
   type CapabilityOptions,
 } from './stats/capability';
 export { detectOutliers, grubbsTest, iqrTest } from './stats/outliers';
+export {
+  capabilityGrade,
+  capabilityVerdictText,
+  CPK_EXCELLENT,
+  CPK_QUALIFIED,
+  CPK_LOW,
+  type CapabilityGrade,
+} from './stats/capabilityVerdict';
 export { buildHistogram, sturgesBinCount, STURGES } from './stats/histogram';
 
 // charts

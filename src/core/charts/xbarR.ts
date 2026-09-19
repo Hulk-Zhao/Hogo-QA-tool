@@ -6,6 +6,7 @@
 
 import type { ControlChartSeries, ControlLine, ChartPoint, SubgroupStats } from '../types';
 import { getConstants } from '../constants/controlChartConstants';
+import { maxOf } from '../math/matrix';
 
 /**
  * 计算 Xbar 中心线。
@@ -39,7 +40,7 @@ export function buildXbarR(subgroups: SubgroupStats[]): ControlChartSeries {
   if (usable.length === 0) {
     throw new RangeError('Xbar-R 要求至少一个容量 >= 2 的子组。');
   }
-  const maxN = Math.max(...usable.map((g) => g.size));
+  const maxN = maxOf(usable.map((g) => g.size));
   const constants = getConstants(maxN);
   const rBar = usable.reduce((acc, g) => acc + g.range, 0) / usable.length;
   const xBar = xbarCenter(usable);

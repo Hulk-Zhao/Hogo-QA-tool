@@ -36,8 +36,20 @@ interface AnalysisState {
   outlierMethod: 'grubbs' | 'iqr';
   /** 异常值候选（含用户勾选状态）。 */
   outlierCandidates: OutlierCandidate[];
-  /** 规格限编辑态。 */
+  /** 规格限编辑态（**有效值**：未覆盖时 = 所选特性导入的规格限）。 */
   spec: SpecEditorState;
+  /**
+   * 规格限是否被用户**手动改过**。
+   *
+   * false = 跟随所选特性的 `specLimits`（导入的 USL/LSL/target/unit 自动预填）；
+   * true  = 用户显式输入过，任何自动预填都不得覆盖。
+   *
+   * 缺陷背景（本轮 P2，已在真实浏览器复现）：导入带 USL/LSL 的 CSV 后，
+   * 能力页规格限为空、Cp/Cpk 全显示 N/A（提示「仅提供单侧规格…」），
+   * 而同一份数据在报表页却能算出 Cpk=3.65 —— 因为能力页的 `spec` 从未与
+   * `characteristic.specLimits` 同步，用户必须重新手输文件里已经有的规格限。
+   */
+  specOverridden: boolean;
 
   setSubgroupCapacity: (capacity: number) => void;
   setSubgroupMode: (mode: SubgroupMode) => void;
@@ -55,6 +67,12 @@ interface AnalysisState {
   /** 撤销：清空候选与勾选。 */
   resetOutliers: () => void;
   setSpec: (spec: Partial<SpecEditorState>) => void;
+  /**
+   * 用某特性「导入的规格限」填充编辑态，并把「已覆盖」标记复位为 false。
+   *
+   * @param limits 特性的规格限（specLimits）
+   */
+  applyCharacteristicSpec: (limits: SpecEditorState) => void;
 }
 
 const DEFAULT_CAPACITY = 5;
@@ -67,6 +85,7 @@ export const useAnalysisStore = create<AnalysisState>((set, get) => ({
   outlierMethod: 'grubbs',
   outlierCandidates: [],
   spec: { usl: null, lsl: null, target: null, unit: 'mm' },
+  specOverridden: false,
 
   setSubgroupCapacity: (capacity) =>
     set({ subgroupCapacity: Math.max(2, Math.min(25, Math.floor(capacity) || DEFAULT_CAPACITY)) }),
@@ -108,5 +127,17 @@ export const useAnalysisStore = create<AnalysisState>((set, get) => ({
 
   resetOutliers: () => set({ outlierCandidates: [] }),
 
-  setSpec: (spec) => set((s) => ({ spec: { ...s.spec, ...spec } })),
+  // 用户手动改任意字段 → 标记为「已覆盖」，后续自动预填不再动它（用户意图优先）。
+  setSpec: (spec) => set((s) => ({ spec: { ...s.spec, ...spec }, specOverridden: true })),
+
+  applyCharacteristicSpec: (limits) =>
+    set({
+      spec: {
+        usl: limits.usl,
+        lsl: limits.lsl,
+        target: limits.target,
+        unit: limits.unit || 'mm',
+      },
+      specOverridden: false,
+    }),
 }));

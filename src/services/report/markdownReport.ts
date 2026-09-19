@@ -7,6 +7,7 @@
  * 纯函数：不含 DOM / 网络依赖，可 Node 裸跑。
  */
 
+import { capabilityVerdictText } from '../../core/stats/capabilityVerdict';
 import type { CpKSummaryRow, DefectStatRow, ReportModel } from '../../data/exporter/reportModel';
 
 /** 指数格式化：null → 「—」，数字 → 保留 3 位小数（去尾零）。 */
@@ -25,22 +26,14 @@ export function fmtNumber(value: number | null, decimals = 4): string {
   return value.toFixed(decimals);
 }
 
-/** 能力门槛判定文案（Cp/Cpk 1.33 合格 / 1.67 优秀）。 */
+/**
+ * 能力门槛判定文案。
+ *
+ * 口径唯一真源在 `core/stats/capabilityVerdict`（本轮抽出，供 Markdown 报告与
+ * P1-03 批量对比表共用），此处仅做字段取值适配。
+ */
 function capabilityVerdict(row: CpKSummaryRow): string {
-  const cpk = row.cpk;
-  if (cpk === null || !Number.isFinite(cpk)) {
-    return '规格限不足，无法判定';
-  }
-  if (cpk >= 1.67) {
-    return '优秀（≥1.67）';
-  }
-  if (cpk >= 1.33) {
-    return '合格（≥1.33）';
-  }
-  if (cpk >= 1.0) {
-    return '偏低（1.00~1.33），建议改善';
-  }
-  return '不合格（<1.00），必须改善';
+  return capabilityVerdictText(row.cpk);
 }
 
 /**

@@ -13,7 +13,7 @@
  * 数值格式：均值/σ/指数 4 位，西格玛水平 2 位，PPM 整数；不可计算显示 N/A 或 —。
  */
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Box,
@@ -38,8 +38,9 @@ import {
 import Checkbox from '@mui/material/Checkbox';
 import { WarningAmber as WarningAmberIcon } from '@mui/icons-material';
 import type { ReactElement } from 'react';
-import { normalityConclusion, type CapabilityWarning } from '@/core';
-import { useProjectStore } from '@/store/projectStore';
+import { capabilityVerdictText, normalityConclusion, type CapabilityWarning } from '@/core';
+import { buildCpkSummary, type CpKSummaryRow } from '@/data/exporter/reportModel';
+import { findCharacteristic, useProjectStore } from '@/store/projectStore';
 import { useAnalysisStore } from '@/store/analysisStore';
 import { useUiStore } from '@/store/uiStore';
 import { useCapabilityAnalysis } from '@/ui/hooks/useCapabilityAnalysis';
@@ -49,6 +50,61 @@ import StatCard from '@/ui/components/StatCard';
 import EmptyState from '@/ui/components/EmptyState';
 import HistogramChart from '@/ui/charts/HistogramChart';
 import { formatIndex, formatNumber, formatPpm, formatSigmaLevel } from '@/ui/format';
+
+/** 批量对比表的可排序列。 */
+type BatchSortKey = 'characteristic' | 'n' | 'cpk' | 'ppk';
+
+/** 取排序字段值（characteristic 返回 null，走名称比较分支）。 */
+function batchSortValue(row: CpKSummaryRow, key: BatchSortKey): number | null {
+  if (key === 'n') {
+    return row.n;
+  }
+  if (key === 'cpk') {
+    return row.cpk;
+  }
+  if (key === 'ppk') {
+    return row.ppk;
+  }
+  return null;
+}
+
+/**
+ * 排序批量对比行（P1-03「可排序」）。
+ *
+ * 语义要点：**无法判定的行永远排在最后**（无论升序还是降序）——
+ * Cpk=null 表示规格限不足，把它排到首屏会把「最差的特性」误读成第一个。
+ *
+ * @param rows 汇总行
+ * @param key 排序键
+ * @param dir 方向
+ * @returns 新数组
+ */
+export function sortBatchRows(
+  rows: readonly CpKSummaryRow[],
+  key: BatchSortKey,
+  dir: 'asc' | 'desc',
+): CpKSummaryRow[] {
+  const sign = dir === 'asc' ? 1 : -1;
+  const sortable: CpKSummaryRow[] = [];
+  const unsortable: CpKSummaryRow[] = [];
+  for (const row of rows) {
+    const v = batchSortValue(row, key);
+    if (key === 'characteristic' || (v !== null && Number.isFinite(v))) {
+      sortable.push(row);
+    } else {
+      unsortable.push(row);
+    }
+  }
+  sortable.sort((a, b) => {
+    if (key === 'characteristic') {
+      return sign * a.characteristic.localeCompare(b.characteristic, 'zh-CN');
+    }
+    const av = batchSortValue(a, key) as number;
+    const bv = batchSortValue(b, key) as number;
+    return sign * (av - bv);
+  });
+  return [...sortable, ...unsortable];
+}
 
 /** 告警文案映射。 */
 const WARNING_TEXT: Record<CapabilityWarning, string> = {
@@ -97,6 +153,44 @@ export default function CapabilityPage(): ReactElement {
   }, [selectedId, outlierMethod]);
 
   const cap = analysis?.capability ?? null;
+
+  /** 当前特性实体（规格限预填与批量表都按它取值）。 */
+  const selectedCharacteristic = useMemo(
+    () => findCharacteristic(dataset, selectedId),
+    [dataset, selectedId],
+  );
+  const specOverridden = useAnalysisStore((s) => s.specOverridden);
+  const applyCharacteristicSpec = useAnalysisStore((s) => s.applyCharacteristicSpec);
+
+  /**
+   * 规格限预填（本轮 P2 修复）：用户没有手动改过时，跟随所选特性**导入的**规格限。
+   *
+   * 复现的缺陷：导入带 USL/LSL 的 CSV 后，本页规格限为空、Cp/Cpk 全 N/A，
+   * 而报表页（用 characteristic.specLimits）能算出 Cpk=3.65 —— 同一份数据两个口径。
+   * 一旦用户手动改过（`specOverridden`），本 effect 不再覆盖，用户意图优先。
+   */
+  useEffect(() => {
+    if (!selectedCharacteristic || specOverridden) {
+      return;
+    }
+    applyCharacteristicSpec(selectedCharacteristic.specLimits);
+  }, [selectedCharacteristic, specOverridden, applyCharacteristicSpec]);
+
+  /** P1-03 多特性批量对比（与报表同口径：固定子组 n=5 + 各特性导入规格限）。 */
+  const batchRows = useMemo(() => (dataset ? buildCpkSummary(dataset) : []), [dataset]);
+  const [batchSort, setBatchSort] = useState<{ key: BatchSortKey; dir: 'asc' | 'desc' }>({
+    key: 'cpk',
+    dir: 'asc',
+  });
+  const sortedBatchRows = useMemo(
+    () => sortBatchRows(batchRows, batchSort.key, batchSort.dir),
+    [batchRows, batchSort],
+  );
+  const toggleBatchSort = (key: BatchSortKey): void => {
+    setBatchSort((s) =>
+      s.key === key ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' },
+    );
+  };
 
   const confirmedCount = useMemo(
     () => candidates.filter((c) => c.confirmed).length,
@@ -233,6 +327,23 @@ export default function CapabilityPage(): ReactElement {
               onChange={(e) => setSpec({ unit: e.target.value })}
               sx={{ width: 100 }}
             />
+            <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 220 }}>
+              <Typography variant="caption" color="text.secondary" data-testid="spec-source-hint">
+                {specOverridden
+                  ? '规格限：已手动修改'
+                  : '规格限：来自导入数据' + (selectedCharacteristic ? '（' + selectedCharacteristic.name + '）' : '')}
+              </Typography>
+              {specOverridden && selectedCharacteristic ? (
+                <Button
+                  size="small"
+                  color="inherit"
+                  data-testid="reset-spec-from-characteristic"
+                  onClick={() => applyCharacteristicSpec(selectedCharacteristic.specLimits)}
+                >
+                  恢复为导入规格
+                </Button>
+              ) : null}
+            </Stack>
           </Stack>
         </CardContent>
       </Card>
@@ -350,6 +461,89 @@ export default function CapabilityPage(): ReactElement {
               <HistogramChart histogram={analysis.histogram} spec={cap.spec} />
             </CardContent>
           </Card>
+
+          {/* P1-03 多特性批量对比：一次性输出 CPK 汇总对比表（可排序） */}
+          {batchRows.length > 1 ? (
+            <Card variant="outlined" data-testid="batch-capability-card">
+              <CardContent>
+                <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
+                  <Typography variant="subtitle1" fontWeight={600}>
+                    多特性 Cpk 汇总对比
+                  </Typography>
+                  <Chip size="small" label={'共 ' + String(batchRows.length) + ' 个特性'} />
+                </Stack>
+                <Typography variant="caption" color="text.secondary">
+                  与报表同口径（子组容量 n=5、各特性自身导入的规格限）；点击表头可排序，
+                  Cpk 不可判定的特性固定排在最后。
+                </Typography>
+                <Table size="small" data-testid="batch-capability-table" sx={{ mt: 1 }}>
+                  <TableHead>
+                    <TableRow>
+                      {(
+                        [
+                          ['characteristic', '特性'],
+                          ['n', 'n'],
+                          ['cpk', 'Cpk'],
+                          ['ppk', 'Ppk'],
+                        ] as [BatchSortKey, string][]
+                      ).map(([key, label]) => (
+                        <TableCell
+                          key={key}
+                          align={key === 'characteristic' ? 'left' : 'right'}
+                          sortDirection={batchSort.key === key ? batchSort.dir : false}
+                          sx={{ fontWeight: 600 }}
+                        >
+                          <Button
+                            size="small"
+                            color="inherit"
+                            data-testid={'batch-sort-' + key}
+                            onClick={() => toggleBatchSort(key)}
+                            sx={{ minWidth: 0, px: 0.5, textTransform: 'none', fontWeight: 600 }}
+                          >
+                            {label}
+                            {batchSort.key === key ? (batchSort.dir === 'asc' ? ' ▲' : ' ▼') : ''}
+                          </Button>
+                        </TableCell>
+                      ))}
+                      <TableCell sx={{ fontWeight: 600 }}>判定（1.33/1.67）</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {sortedBatchRows.map((row) => (
+                      <TableRow
+                        key={row.characteristic}
+                        data-testid={'batch-row-' + row.characteristic}
+                        sx={
+                          selectedCharacteristic && row.characteristic === selectedCharacteristic.name
+                            ? { bgcolor: 'action.selected' }
+                            : undefined
+                        }
+                      >
+                        <TableCell>
+                          <Stack direction="row" spacing={0.5} alignItems="center">
+                            <span>{row.characteristic}</span>
+                            {selectedCharacteristic && row.characteristic === selectedCharacteristic.name ? (
+                              <Chip size="small" color="primary" label="当前" />
+                            ) : null}
+                          </Stack>
+                        </TableCell>
+                        <TableCell align="right">{row.n}</TableCell>
+                        <TableCell align="right">
+                          <NumberCell value={row.cpk} kind="index" />
+                        </TableCell>
+                        <TableCell align="right">
+                          <NumberCell value={row.ppk} kind="index" />
+                        </TableCell>
+                        <TableCell data-testid={'batch-verdict-' + row.characteristic}>
+                          {capabilityVerdictText(row.cpk)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          ) : null}
 
           {/* 正态性结论卡 */}
           <Card variant="outlined" data-testid="normality-card">

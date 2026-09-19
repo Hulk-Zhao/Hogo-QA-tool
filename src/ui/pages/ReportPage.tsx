@@ -113,6 +113,7 @@ export default function ReportPage(): ReactElement {
   const manualBoundaries = useAnalysisStore((s) => s.manualBoundaries);
   const sigmaMode = useAnalysisStore((s) => s.sigmaMode);
   const spec = useAnalysisStore((s) => s.spec);
+  const specOverridden = useAnalysisStore((s) => s.specOverridden);
 
   // 导出范围与判异开关：均来自持久化的 settingsStore（刷新后保持用户选择）。
   const exportOptions = useSettingsStore((s) => s.exportOptions);
@@ -154,6 +155,17 @@ export default function ReportPage(): ReactElement {
     return findCharacteristic(dataset, selectedId) ?? dataset.characteristics[0];
   }, [dataset, selectedId]);
 
+  /**
+   * 报表实际使用的规格限。
+   *
+   * 用户手动改过（`specOverridden`）→ 尊重用户输入；否则用**聚焦特性自身导入的**
+   * 规格限，保证「报表按特性口径」不被能力页的编辑态串台（本轮 P2 修复）。
+   */
+  const effectiveSpec = useMemo(
+    () => (specOverridden || !focusCharacteristic ? spec : focusCharacteristic.specLimits),
+    [specOverridden, focusCharacteristic, spec],
+  );
+
   /** 能力图（直方图）数据。 */
   const capabilityAnalysis = useMemo(
     () =>
@@ -162,9 +174,9 @@ export default function ReportPage(): ReactElement {
         subgroupCapacity: capacity,
         manualBoundaries,
         sigmaMode,
-        spec,
+        spec: effectiveSpec,
       }),
-    [focusCharacteristic, subgroupMode, capacity, manualBoundaries, sigmaMode, spec],
+    [focusCharacteristic, subgroupMode, capacity, manualBoundaries, sigmaMode, effectiveSpec],
   );
 
   /** 控制图数据（图型按子组容量自动选择，与实际产线口径一致）。 */
@@ -505,7 +517,7 @@ export default function ReportPage(): ReactElement {
                   <div className="print-chart">
                     <HistogramChart
                       histogram={capabilityAnalysis.histogram}
-                      spec={spec}
+                      spec={effectiveSpec}
                       height={320}
                     />
                   </div>

@@ -366,9 +366,11 @@ describe('QA-D4 列名变体容错与错误定位', () => {
     expect(r.dimensionMapping!.mapping.lsl).toBe(3);
   });
 
-  it('【现状核查】columnAliases 文档称「全角转半角」，但实现仅转全角空格，不转全角字母', () => {
-    // columnAliases.ts 注释：「规范化（去空白、全角转半角、转小写）」
-    // 实际 normalizeColumnName 只把 \u3000 换成空格，未做 FF01..FF5E → 21..7E 映射。
+  it('全角字母列名可识别（P2-C 修复「文档称全角转半角、实现只转全角空格」）', () => {
+    // 历史：columnAliases.ts 注释一直写着「规范化（去空白、全角转半角、转小写）」，
+    // 但 normalizeColumnName 只把全角空格换成半角，「全角字母」从未实现 ——
+    // 现场用中文输入法导入的 ＵＳＬ/ＬＳＬ 一律被判定为未识别列。
+    // 本轮 P2-C 补齐 toHalfWidthAscii 后，本用例由「记录不一致现状」转为回归防护。
     const buf = makeXlsx({
       dimension: [
         ['物料名称', '测量值', 'ＵＳＬ', 'ＬＳＬ'],
@@ -376,10 +378,8 @@ describe('QA-D4 列名变体容错与错误定位', () => {
       ],
     });
     const r = parseXlsx(buf);
-    // 全角 ＵＳＬ 未被识别为 usl/lsl → 记录该文档/实现不一致现状。
-    expect(r.dimensionMapping!.mapping.usl).toBeUndefined();
-    expect(r.dimensionMapping!.mapping.lsl).toBeUndefined();
-    // 但因为 usl/lsl 非必需，仍可导入（只映射 material/value）
+    expect(r.dimensionMapping!.mapping.usl).toBe(2);
+    expect(r.dimensionMapping!.mapping.lsl).toBe(3);
     expect(r.dimensionMapping!.missingRoles).toEqual([]);
   });
 

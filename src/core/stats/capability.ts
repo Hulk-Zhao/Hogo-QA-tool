@@ -20,6 +20,7 @@ import type {
   SubgroupStats,
 } from '../types';
 import { getC4, getD2 } from '../constants/controlChartConstants';
+import { maxOf } from '../math/matrix';
 import { normalCdf } from '../math/normalCdf';
 import { mean as meanOf, stdDev } from './descriptive';
 import { assertValidSpec } from './specLimits';
@@ -85,7 +86,7 @@ export function estimateSigmaWithin(
   }
 
   // 按 max(n) 选 R/S 法
-  const maxN = Math.max(...usable.map((g) => g.size));
+  const maxN = maxOf(usable.map((g) => g.size));
   const mode: SigmaMode = opts?.sigmaMode ?? (maxN <= 10 ? 'R' : 'S');
 
   if (mode === 'R') {

@@ -1,0 +1,23 @@
+{
+  "steps": [
+    "OK: 应用加载",
+    "OK: 导入页",
+    "OK: 粘贴框",
+    "OK: 解析完成",
+    "OK: 能力页",
+    "OK: 报表页"
+  ],
+  "checks": {
+    "uslInput": null,
+    "lslInput": null,
+    "cpkCell": null,
+    "capabilityPageText": "过程能力分析\n特性\n外壳长度（n=60）\n特性\n划分方式\n固定容量\n划分方式\n子组容量 n\n子组容量 n\n异常值方法\nGrubbs（默认）\n异常值方法\nUSL（上限）\nUSL（上限）\nLSL（下限）\nLSL（下限）\n目标值\n目标值\n单位\n单位\n仅提供单侧规格，Cp / Pp 不可计算（显示 N/A）。\n能力指数结果\n指标\t数值\t说明\n测量数 n\t60\t参与计算的有效测量数\n均值 X̄\t50.0012\t4 位小数\n组内 σ (within)\t0.0181\t用于 Cp/Cpk；估计法：R\n整体 σ (overall)\t0.0211\t用于 Pp/Ppk；ddof=1\nCa 准确度\tN/A\t有符号；无目标中心时为 N/A\nCp\tN/A\t单侧规格不可计算（N/A）\nCpk\tN/A\tmin(Cpu, Cpl)\nPp\tN/A\t单侧规格不可计算（N/A）\nPpk\tN/A\tmin(Ppu, Ppl)\n西格玛水平（短期）\t—\t短期能力(3×Cpk)\n西格玛水平（工程）\t—\t工程口径(含1.5σ漂移)\nPPM（整体口径）\t—\t基于整体 σ 的双侧期望不良率\nPPM（组内口径）\t—\t基于组内 σ 的潜在不良率\n两个西格玛水平相差 1.5σ，用于不同场景，请勿混用：短期能力(3×Cpk) 反映当前过程潜力， 工程口径(含1.5σ漂移) 反映长期可期望水平。\nCp\nN/A\nCpk\nN/A\nPp\nN/A\nPpk",
+    "characteristicOptions": "外壳长度（n=60）特性",
+    "reportCpkText": "特性\tn\tCpk\tPpk\tCp\tPp\n外壳长度\t60\t3.6521\t3.1372\t3.6738\t3.1559\n转轴直径\t60\t2.1512\t1.5529\t2.1738\t1.5692",
+    "pageErrors": 0,
+    "consoleErrors": 0
+  },
+  "pageErrors": [],
+  "consoleErrors": [],
+  "ok": true
+}

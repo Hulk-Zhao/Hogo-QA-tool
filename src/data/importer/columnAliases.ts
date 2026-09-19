@@ -7,10 +7,36 @@
 
 import type { FieldRole } from './types';
 
-/** 规范化列名：去首尾空白、全角空格→半角、压缩内部空白、转小写。 */
+/**
+ * 全角 → 半角（全角可见区 U+FF01–U+FF5E 与全角空格 U+3000）。
+ *
+ * 为什么需要：现场 Excel/CSV 常残留中文输入法打出的全角字符，`ＵＳＬ` 与半角
+ * `USL` 属于**同一列语义**。若不做归一化，导入向导会整列判为「未识别列」，
+ * 用户被迫改列名——与 PRD P0-15「避免要求用户改列名」的初衷相悖。
+ *
+ * 仅做字符宽度归一，不做大小写折叠（由 {@link normalizeColumnName} 负责）。
+ *
+ * @param s 原始字符串（可能含全角字符）
+ * @returns 全角可见字符与全角空格已转半角的字符串
+ */
+export function toHalfWidthAscii(s: string): string {
+  let out = '';
+  for (const ch of s) {
+    const code = ch.codePointAt(0) ?? 0;
+    if (code === 0x3000) {
+      out += ' ';
+    } else if (code >= 0xff01 && code <= 0xff5e) {
+      out += String.fromCharCode(code - 0xfee0);
+    } else {
+      out += ch;
+    }
+  }
+  return out;
+}
+
+/** 规范化列名：全角转半角、去首尾空白、压缩内部空白、转小写。 */
 export function normalizeColumnName(raw: string): string {
-  return raw
-    .replace(/\u3000/g, ' ') // 全角空格
+  return toHalfWidthAscii(raw)
     .replace(/\s+/g, ' ')
     .trim()
     .toLowerCase();

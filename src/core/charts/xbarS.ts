@@ -6,6 +6,7 @@
 
 import type { ControlChartSeries, ControlLine, ChartPoint, SubgroupStats } from '../types';
 import { getConstants } from '../constants/controlChartConstants';
+import { maxOf } from '../math/matrix';
 import { constLine, xbarCenter } from './xbarR';
 
 /**
@@ -21,7 +22,7 @@ export function buildXbarS(subgroups: SubgroupStats[]): ControlChartSeries {
   if (usable.length === 0) {
     throw new RangeError('Xbar-S 要求至少一个容量 >= 2 的子组。');
   }
-  const maxN = Math.max(...usable.map((g) => g.size));
+  const maxN = maxOf(usable.map((g) => g.size));
   const constants = getConstants(maxN);
   const sBar = usable.reduce((acc, g) => acc + g.std, 0) / usable.length;
   const xBar = xbarCenter(usable);

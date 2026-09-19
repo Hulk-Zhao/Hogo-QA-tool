@@ -46,6 +46,45 @@ export function average(xs: number[]): number {
 }
 
 /**
+ * 最大值（O(n) 循环，**不使用** `Math.max(...xs)`）。
+ *
+ * 为什么必须用循环而不是展开运算符：`Math.max(...xs)` 会把每个元素作为**实参**
+ * 压入调用栈，12 万级以上的数组直接抛 `RangeError: Maximum call stack size exceeded`
+ * —— 本项目 csvImporter 已在 12 万行真实数据上踩过这个坑。此处统一口径，
+ * 消除同类隐患（子组数虽然量级小，但「同一件事只有一种写法」本身就是防线）。
+ *
+ * @param xs 数值数组
+ * @throws {RangeError} 空数组
+ */
+export function maxOf(xs: number[]): number {
+  if (xs.length === 0) {
+    throw new RangeError('maxOf 输入不能为空数组。');
+  }
+  let max = xs[0];
+  for (let i = 1; i < xs.length; i += 1) {
+    if (xs[i] > max) max = xs[i];
+  }
+  return max;
+}
+
+/**
+ * 最小值（O(n) 循环，理由同 {@link maxOf}）。
+ *
+ * @param xs 数值数组
+ * @throws {RangeError} 空数组
+ */
+export function minOf(xs: number[]): number {
+  if (xs.length === 0) {
+    throw new RangeError('minOf 输入不能为空数组。');
+  }
+  let min = xs[0];
+  for (let i = 1; i < xs.length; i += 1) {
+    if (xs[i] < min) min = xs[i];
+  }
+  return min;
+}
+
+/**
  * 极差 R = max - min。
  *
  * @throws {RangeError} 空数组

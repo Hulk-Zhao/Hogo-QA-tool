@@ -8,6 +8,7 @@
  * U:  ū=Σc/Σn；CL=ū；限 = ū ± 3·√(ū/n_i)
  */
 
+import { maxOf } from '../math/matrix';
 import type { AttributeInput, ChartPoint, ControlChartSeries, ControlLine } from '../types';
 
 /** 判断数组是否全为有限非负数。 */
@@ -74,7 +75,7 @@ export function buildP(input: AttributeInput): ControlChartSeries {
         pointwiseLine('LCL', lcl, false),
       ],
     },
-    constantsUsed: { n: Math.max(...n) },
+    constantsUsed: { n: maxOf(n) },
     selectedType: 'P',
   };
 }
@@ -204,7 +205,7 @@ export function buildU(input: AttributeInput): ControlChartSeries {
         pointwiseLine('LCL', lcl, false),
       ],
     },
-    constantsUsed: { n: Math.max(...n) },
+    constantsUsed: { n: maxOf(n) },
     selectedType: 'U',
   };
 }
