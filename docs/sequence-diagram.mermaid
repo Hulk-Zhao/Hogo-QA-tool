@@ -1,0 +1,42 @@
+sequenceDiagram
+    autonumber
+    actor U as 用户
+    participant P as ImportPage
+    participant ST as projectStore
+    participant IMP as data/importer
+    participant DB as data/repositories
+    participant OP as data/storage/opfs
+    participant CORE as core/stats
+    participant CC as core/charts
+    participant RU as core/rules
+    participant CH as ui/charts/ControlChart
+    participant EX as data/exporter
+
+    U->>P: 拖入 quality_data.xlsx
+    P->>IMP: xlsxImporter.parse(file)
+    IMP->>IMP: 识别 sheet(dimension/defect) + 列别名匹配
+    IMP-->>P: ParseResult{columns, rows, validation}
+    P->>U: 展示列映射预览
+    U->>P: 确认映射
+    P->>IMP: buildModel(rows)
+    IMP-->>P: Dataset{characteristics, defectRecords}
+    P->>ST: addDataset(dataset)
+    ST->>DB: saveProject(project)
+    ST->>OP: writeMeasurements(blobRef, measurements)
+    ST->>CORE: buildSubgroups(measurements, cfg)
+    CORE-->>ST: SubgroupStats[]
+    ST->>CORE: computeCapability(values, spec, subgroups)
+    CORE-->>ST: CapabilityResult
+    ST-->>P: 更新 UI state
+    U->>CH: 切到控制图页
+    CH->>ST: 订阅当前特性 + chartType
+    ST->>CC: buildControlChart(type, inputs)
+    CC-->>ST: ControlChartSeries
+    ST->>RU: evaluateRules(series, sigma, toggles)
+    RU-->>ST: RuleEvaluationResult
+    ST-->>CH: series + violations
+    CH-->>U: 绘制控制限/分区带/违规高亮
+    U->>EX: 点击「导出日报」
+    EX->>ST: 读取当前项目
+    EX->>EX: excelReport.build(4 sheets)
+    EX-->>U: quality_report.xlsx 下载

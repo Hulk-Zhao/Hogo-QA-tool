@@ -1,0 +1,44 @@
+/* 打印 / PDF 原生样式（架构文档 §0.2 #1：不引入 jsPDF，使用浏览器原生打印）。 */
+
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+
+  html,
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  /* 隐藏交互元素：导航、按钮、配置面板 */
+  .no-print,
+  nav,
+  button {
+    display: none !important;
+  }
+
+  /* 图表与表格分页控制 */
+  .print-chart,
+  .print-table {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .print-page-break {
+    break-before: page;
+    page-break-before: always;
+  }
+
+  /* 保证图表容器在打印时可见 */
+  .print-chart canvas,
+  .print-chart svg {
+    max-width: 100% !important;
+  }
+
+  /* 「打印/PDF 不含图表」勾选关闭时，隐藏图表（仅作用于打印，不影响 Excel） */
+  body.print-hide-charts .print-chart {
+    display: none !important;
+  }
+}

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 48" width="200" height="48">
+  <rect width="48" height="48" rx="8" fill="#4472C4" />
+  <polyline points="10,32 18,26 26,29 34,16 42,21" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+  <text x="58" y="32" font-family="Microsoft YaHei, sans-serif" font-size="22" font-weight="600" fill="#1f2329">Hogo-QA-tool</text>
+</svg>

@@ -1,0 +1,875 @@
+
+[1m[7m[36m RUN [39m[27m[22m [36mv2.1.9 [39m[90mE:/tools/Hogo-QA-tool[39m
+
+ [32m✓[39m src/services/ai/__tests__/aiClient.spec.ts [2m([22m[2m35 tests[22m[2m)[22m[90m 68[2mms[22m[39m
+ [32m✓[39m src/data/__tests__/repository.spec.ts [2m([22m[2m16 tests[22m[2m)[22m[90m 25[2mms[22m[39m
+ [32m✓[39m src/core/__tests__/qa_independent.spec.ts [2m([22m[2m147 tests[22m[2m)[22m[90m 48[2mms[22m[39m
+ [32m✓[39m src/core/__tests__/charts.spec.ts [2m([22m[2m16 tests[22m[2m)[22m[90m 20[2mms[22m[39m
+ [32m✓[39m src/core/__tests__/capability.spec.ts [2m([22m[2m16 tests[22m[2m)[22m[90m 22[2mms[22m[39m
+ [32m✓[39m src/data/__tests__/migrations.spec.ts [2m([22m[2m16 tests[22m[2m)[22m[90m 20[2mms[22m[39m
+ [32m✓[39m src/core/__tests__/qa_independent2.spec.ts [2m([22m[2m19 tests[22m[2m)[22m[90m 28[2mms[22m[39m
+ [32m✓[39m src/core/__tests__/qa_nelson_varlimit.spec.ts [2m([22m[2m7 tests[22m[2m)[22m[90m 8[2mms[22m[39m
+ [32m✓[39m src/data/__tests__/xlsxImporter.spec.ts [2m([22m[2m12 tests[22m[2m)[22m[90m 178[2mms[22m[39m
+ [32m✓[39m src/core/__tests__/rules.spec.ts [2m([22m[2m35 tests[22m[2m)[22m[90m 57[2mms[22m[39m
+ [32m✓[39m src/core/__tests__/subgrouping.spec.ts [2m([22m[2m13 tests[22m[2m)[22m[90m 13[2mms[22m[39m
+ [32m✓[39m src/core/__tests__/constants.spec.ts [2m([22m[2m31 tests[22m[2m)[22m[90m 21[2mms[22m[39m
+ [32m✓[39m src/core/__tests__/qa_independent3.spec.ts [2m([22m[2m19 tests[22m[2m)[22m[90m 34[2mms[22m[39m
+ [32m✓[39m src/store/__tests__/settingsStore.spec.ts [2m([22m[2m26 tests[22m[2m)[22m[90m 22[2mms[22m[39m
+ [32m✓[39m src/core/__tests__/pareto.spec.ts [2m([22m[2m7 tests[22m[2m)[22m[90m 6[2mms[22m[39m
+ [32m✓[39m src/core/__tests__/normality.spec.ts [2m([22m[2m14 tests[22m[2m)[22m[90m 29[2mms[22m[39m
+ [32m✓[39m src/core/__tests__/controlChart.spec.ts [2m([22m[2m5 tests[22m[2m)[22m[90m 15[2mms[22m[39m
+ [32m✓[39m src/core/__tests__/math.spec.ts [2m([22m[2m21 tests[22m[2m)[22m[90m 15[2mms[22m[39m
+ [32m✓[39m src/services/ai/__tests__/payloadBuilder.spec.ts [2m([22m[2m9 tests[22m[2m)[22m[90m 16[2mms[22m[39m
+ [32m✓[39m src/services/report/__tests__/markdownReport.spec.ts [2m([22m[2m11 tests[22m[2m)[22m[90m 44[2mms[22m[39m
+ [32m✓[39m src/ui/__tests__/format.spec.ts [2m([22m[2m15 tests[22m[2m)[22m[90m 10[2mms[22m[39m
+ [32m✓[39m src/ui/__tests__/selectors.spec.ts [2m([22m[2m11 tests[22m[2m)[22m[90m 16[2mms[22m[39m
+ [32m✓[39m src/data/__tests__/exporter.spec.ts [2m([22m[2m11 tests[22m[2m)[22m[90m 169[2mms[22m[39m
+ [32m✓[39m src/data/__tests__/csvImporter.spec.ts [2m([22m[2m14 tests[22m[2m)[22m[90m 21[2mms[22m[39m
+ [32m✓[39m src/ui/__tests__/controlChartOption.spec.ts [2m([22m[2m13 tests[22m[2m)[22m[90m 16[2mms[22m[39m
+ [32m✓[39m src/data/__tests__/e2eRealData.spec.ts [2m([22m[2m3 tests[22m[2m)[22m[90m 85[2mms[22m[39m
+ [32m✓[39m src/ui/__tests__/outlierFlow.spec.ts [2m([22m[2m7 tests[22m[2m)[22m[90m 9[2mms[22m[39m
+ [32m✓[39m src/core/__tests__/outliers.spec.ts [2m([22m[2m11 tests[22m[2m)[22m[90m 9[2mms[22m[39m
+ [32m✓[39m src/core/__tests__/histogram.spec.ts [2m([22m[2m7 tests[22m[2m)[22m[90m 5[2mms[22m[39m
+ [32m✓[39m src/data/__tests__/performance.spec.ts [2m([22m[2m3 tests[22m[2m)[22m[33m 446[2mms[22m[39m
+ [32m✓[39m src/services/ai/__tests__/usageLog.spec.ts [2m([22m[2m3 tests[22m[2m)[22m[90m 7[2mms[22m[39m
+ [32m✓[39m src/ui/__tests__/paretoChart.spec.ts [2m([22m[2m7 tests[22m[2m)[22m[90m 4[2mms[22m[39m
+ [32m✓[39m src/ui/__tests__/controlChartCore.spec.ts [2m([22m[2m14 tests[22m[2m)[22m[90m 76[2mms[22m[39m
+ [32m✓[39m src/ui/bootstrap/__tests__/settingsBootstrap.spec.ts [2m([22m[2m6 tests[22m[2m)[22m[90m 184[2mms[22m[39m
+ [32m✓[39m src/data/storage/__tests__/localStorageJsonStore.spec.ts [2m([22m[2m18 tests[22m[2m)[22m[90m 54[2mms[22m[39m
+[90mstderr[2m | src/ui/__tests__/useAiAvailability.spec.tsx[2m > [22m[2museAiAvailability[2m > [22m[2m无 Base URL → offline（NO_BASE_URL），且不调用探测函数（不打网络）
+[22m[39mWarning: An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at TestComponent (E:\tools\Hogo-QA-tool\node_modules\@testing-library\react\dist\pure.js:337:5)
+Warning: An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at TestComponent (E:\tools\Hogo-QA-tool\node_modules\@testing-library\react\dist\pure.js:337:5)
+Warning: An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at TestComponent (E:\tools\Hogo-QA-tool\node_modules\@testing-library\react\dist\pure.js:337:5)
+Warning: An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at TestComponent (E:\tools\Hogo-QA-tool\node_modules\@testing-library\react\dist\pure.js:337:5)
+
+[90mstderr[2m | src/ui/__tests__/useAiAvailability.spec.tsx[2m > [22m[2museAiAvailability[2m > [22m[2m无 Key 但 baseUrl 非空（本机 Ollama）→ 走注入的 probeFn，不再按 Key 短路
+[22m[39mWarning: An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at TestComponent (E:\tools\Hogo-QA-tool\node_modules\@testing-library\react\dist\pure.js:337:5)
+Warning: An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at TestComponent (E:\tools\Hogo-QA-tool\node_modules\@testing-library\react\dist\pure.js:337:5)
+Warning: An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at TestComponent (E:\tools\Hogo-QA-tool\node_modules\@testing-library\react\dist\pure.js:337:5)
+Warning: An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at TestComponent (E:\tools\Hogo-QA-tool\node_modules\@testing-library\react\dist\pure.js:337:5)
+
+[90mstderr[2m | src/ui/__tests__/useAiAvailability.spec.tsx[2m > [22m[2museAiAvailability[2m > [22m[2mbaseUrl 为空 → 不打网络（probeFn 不被调用）
+[22m[39mWarning: An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at TestComponent (E:\tools\Hogo-QA-tool\node_modules\@testing-library\react\dist\pure.js:337:5)
+Warning: An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at TestComponent (E:\tools\Hogo-QA-tool\node_modules\@testing-library\react\dist\pure.js:337:5)
+Warning: An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at TestComponent (E:\tools\Hogo-QA-tool\node_modules\@testing-library\react\dist\pure.js:337:5)
+Warning: An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at TestComponent (E:\tools\Hogo-QA-tool\node_modules\@testing-library\react\dist\pure.js:337:5)
+
+[90mstderr[2m | src/ui/__tests__/useAiAvailability.spec.tsx[2m > [22m[2museAiAvailability[2m > [22m[2m有 Key 且可达 → status=ai、mode=ai
+[22m[39mWarning: An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at TestComponent (E:\tools\Hogo-QA-tool\node_modules\@testing-library\react\dist\pure.js:337:5)
+Warning: An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at TestComponent (E:\tools\Hogo-QA-tool\node_modules\@testing-library\react\dist\pure.js:337:5)
+Warning: An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at TestComponent (E:\tools\Hogo-QA-tool\node_modules\@testing-library\react\dist\pure.js:337:5)
+Warning: An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at TestComponent (E:\tools\Hogo-QA-tool\node_modules\@testing-library\react\dist\pure.js:337:5)
+
+[90mstderr[2m | src/ui/__tests__/useAiAvailability.spec.tsx[2m > [22m[2museAiAvailability[2m > [22m[2m有 Key 但不可达 → offline 且保留配置
+[22m[39mWarning: An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at TestComponent (E:\tools\Hogo-QA-tool\node_modules\@testing-library\react\dist\pure.js:337:5)
+Warning: An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at TestComponent (E:\tools\Hogo-QA-tool\node_modules\@testing-library\react\dist\pure.js:337:5)
+Warning: An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at TestComponent (E:\tools\Hogo-QA-tool\node_modules\@testing-library\react\dist\pure.js:337:5)
+Warning: An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at TestComponent (E:\tools\Hogo-QA-tool\node_modules\@testing-library\react\dist\pure.js:337:5)
+
+[90mstderr[2m | src/ui/__tests__/useAiAvailability.spec.tsx[2m > [22m[2museAiAvailability[2m > [22m[2mretry() 重新探测，可从未达切换为可用
+[22m[39mWarning: An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at TestComponent (E:\tools\Hogo-QA-tool\node_modules\@testing-library\react\dist\pure.js:337:5)
+Warning: An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at TestComponent (E:\tools\Hogo-QA-tool\node_modules\@testing-library\react\dist\pure.js:337:5)
+Warning: An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at TestComponent (E:\tools\Hogo-QA-tool\node_modules\@testing-library\react\dist\pure.js:337:5)
+Warning: An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at TestComponent (E:\tools\Hogo-QA-tool\node_modules\@testing-library\react\dist\pure.js:337:5)
+
+ [32m✓[39m src/ui/__tests__/useAiAvailability.spec.tsx [2m([22m[2m6 tests[22m[2m)[22m[33m 491[2mms[22m[39m
+[90mstderr[2m | src/ui/__tests__/SettingsPage.spec.tsx[2m > [22m[2mSettingsPage[2m > [22m[2m渲染页面与 AI 配置表单
+[22m[39m⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+
+ [32m✓[39m src/ui/__tests__/SettingsPage.spec.tsx [2m([22m[2m6 tests[22m[2m)[22m[33m 1601[2mms[22m[39m
+   [33m[2m✓[22m[39m SettingsPage[2m > [22m渲染页面与 AI 配置表单 [33m580[2mms[22m[39m
+   [33m[2m✓[22m[39m SettingsPage[2m > [22mconstants 表渲染 n=2..25 共 24 行，且 D3/B3 小 n 显示「—」而非 0 [33m327[2mms[22m[39m
+[90mstderr[2m | src/ui/__tests__/AiAssistantPage.spec.tsx[2m > [22m[2mAiAssistantPage[2m > [22m[2m离线模式 → 显示离线提示，不渲染助手 UI
+[22m[39m⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+
+[90mstderr[2m | src/ui/__tests__/topbarWiring.spec.tsx[2m > [22m[2mTopBar —— 一键日报导出接线[2m > [22m[2m有数据：真实导出 Excel（非空 buffer + .xlsx 文件名 + 正确 MIME），并跳转 /report 触发打印
+[22m[39m⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+
+ [32m✓[39m src/ui/__tests__/AiAssistantPage.spec.tsx [2m([22m[2m8 tests[22m[2m)[22m[33m 1189[2mms[22m[39m
+   [33m[2m✓[22m[39m AiAssistantPage[2m > [22m开启「允许发送原始数据」后点击 → 先弹出二次确认，且发送范围变为「摘要 + 明细」 [33m324[2mms[22m[39m
+ [32m✓[39m src/ui/__tests__/topbarWiring.spec.tsx [2m([22m[2m4 tests[22m[2m)[22m[33m 605[2mms[22m[39m
+   [33m[2m✓[22m[39m TopBar —— 一键日报导出接线[2m > [22m有数据：真实导出 Excel（非空 buffer + .xlsx 文件名 + 正确 MIME），并跳转 /report 触发打印 [33m441[2mms[22m[39m
+[90mstderr[2m | src/ui/__tests__/CapabilityPage.spec.tsx[2m > [22m[2mCapabilityPage —— 结果表渲染条件[2m > [22m[2m无数据时渲染空状态
+[22m[39m⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+
+[90mstderr[2m | src/ui/__tests__/CapabilityPage.spec.tsx[2m > [22m[2mCapabilityPage —— 结果表渲染条件[2m > [22m[2m双侧规格：Cp/Cpk/Pp/Ppk 均为数值（非 N/A）
+[22m[39m[ECharts] Can't get DOM width or height. Please check dom.clientWidth and dom.clientHeight. They should not be 0.For example, you may need to call this in the callback of window.onload.
+
+[90mstderr[2m | src/ui/__tests__/CapabilityPage.spec.tsx[2m > [22m[2mCapabilityPage —— 结果表渲染条件[2m > [22m[2m单侧规格：Cp 与 Pp 显示 N/A；Cpk/Ppk 仍有值
+[22m[39m[ECharts] Can't get DOM width or height. Please check dom.clientWidth and dom.clientHeight. They should not be 0.For example, you may need to call this in the callback of window.onload.
+
+[90mstderr[2m | src/ui/__tests__/CapabilityPage.spec.tsx[2m > [22m[2mCapabilityPage —— 结果表渲染条件[2m > [22m[2m双西格玛水平标注「短期能力」与「工程口径」
+[22m[39m[ECharts] Can't get DOM width or height. Please check dom.clientWidth and dom.clientHeight. They should not be 0.For example, you may need to call this in the callback of window.onload.
+
+[90mstderr[2m | src/ui/__tests__/CapabilityPage.spec.tsx[2m > [22m[2mCapabilityPage —— 结果表渲染条件[2m > [22m[2m正态性卡渲染 AD / S-W 统计量与 p 值
+[22m[39m[ECharts] Can't get DOM width or height. Please check dom.clientWidth and dom.clientHeight. They should not be 0.For example, you may need to call this in the callback of window.onload.
+
+[90mstderr[2m | src/ui/__tests__/CapabilityPage.spec.tsx[2m > [22m[2mCapabilityPage —— 结果表渲染条件[2m > [22m[2m西格玛水平 2 位小数格式
+[22m[39m[ECharts] Can't get DOM width or height. Please check dom.clientWidth and dom.clientHeight. They should not be 0.For example, you may need to call this in the callback of window.onload.
+
+ [32m✓[39m src/ui/__tests__/CapabilityPage.spec.tsx [2m([22m[2m6 tests[22m[2m)[22m[33m 1365[2mms[22m[39m
+   [33m[2m✓[22m[39m CapabilityPage —— 结果表渲染条件[2m > [22m双侧规格：Cp/Cpk/Pp/Ppk 均为数值（非 N/A） [33m563[2mms[22m[39m
+[90mstderr[2m | src/ui/__tests__/ProjectLibraryPage.spec.tsx[2m > [22m[2mProjectLibraryPage[2m > [22m[2m空库 → 显示空状态
+[22m[39m⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+
+[90mstderr[2m | src/ui/__tests__/qa_round3_independent.spec.tsx[2m > [22m[2mQA-R1 路由渲染目标组件（非兜底重定向）[2m > [22m[2m/import → 渲染该页（非兜底页）
+[22m[39m⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+
+[90mstderr[2m | src/ui/__tests__/qa_round3_independent.spec.tsx[2m > [22m[2mQA-R1 路由渲染目标组件（非兜底重定向）[2m > [22m[2m/library → 渲染该页（非兜底页）
+[22m[39mWarning: An update to ProjectLibraryPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at ProjectLibraryPage (E:\tools\Hogo-QA-tool\src\ui\pages\ProjectLibraryPage.tsx:45:42)
+    at RenderedRoute (E:\tools\Hogo-QA-tool\node_modules\react-router\dist\umd\react-router.development.js:535:7)
+    at Routes (E:\tools\Hogo-QA-tool\node_modules\react-router\dist\umd\react-router.development.js:1269:7)
+    at ErrorBoundary (E:\tools\Hogo-QA-tool\src\ui\components\ErrorBoundary.tsx:8:1)
+    at main
+    at E:\tools\Hogo-QA-tool\node_modules\@emotion\react\dist\emotion-element-e8f4cc37.development.cjs.js:60:23
+    at Box (E:\tools\Hogo-QA-tool\node_modules\@mui\system\createBox.js:31:41)
+    at div
+    at E:\tools\Hogo-QA-tool\node_modules\@emotion\react\dist\emotion-element-e8f4cc37.development.cjs.js:60:23
+    at Box (E:\tools\Hogo-QA-tool\node_modules\@mui\system\createBox.js:31:41)
+    at div
+    at E:\tools\Hogo-QA-tool\node_modules\@emotion\react\dist\emotion-element-e8f4cc37.development.cjs.js:60:23
+    at Box (E:\tools\Hogo-QA-tool\node_modules\@mui\system\createBox.js:31:41)
+    at AppShell
+    at Router (E:\tools\Hogo-QA-tool\node_modules\react-router\dist\umd\react-router.development.js:1203:17)
+    at MemoryRouter (E:\tools\Hogo-QA-tool\node_modules\react-router\dist\umd\react-router.development.js:1097:7)
+    at DefaultPropsProvider (E:\tools\Hogo-QA-tool\node_modules\@mui\system\DefaultPropsProvider\DefaultPropsProvider.js:18:3)
+    at RtlProvider (E:\tools\Hogo-QA-tool\node_modules\@mui\system\RtlProvider\index.js:19:7)
+    at ThemeProvider (E:\tools\Hogo-QA-tool\node_modules\@mui\private-theming\node\ThemeProvider\ThemeProvider.js:39:5)
+    at ThemeProvider (E:\tools\Hogo-QA-tool\node_modules\@mui\system\ThemeProvider\ThemeProvider.js:53:5)
+    at ThemeProvider (E:\tools\Hogo-QA-tool\node_modules\@mui\material\node\styles\ThemeProvider.js:21:14)
+
+[90mstderr[2m | src/ui/__tests__/qa_round3_independent.spec.tsx[2m > [22m[2mQA-R4 T05 useAiAvailability 三态[2m > [22m[2m无 Base URL：全局 fetch 零调用（G3），status=offline/reason=NO_BASE_URL
+[22m[39mWarning: An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at TestComponent (E:\tools\Hogo-QA-tool\node_modules\@testing-library\react\dist\pure.js:337:5)
+Warning: An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at TestComponent (E:\tools\Hogo-QA-tool\node_modules\@testing-library\react\dist\pure.js:337:5)
+Warning: An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at TestComponent (E:\tools\Hogo-QA-tool\node_modules\@testing-library\react\dist\pure.js:337:5)
+Warning: An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at TestComponent (E:\tools\Hogo-QA-tool\node_modules\@testing-library\react\dist\pure.js:337:5)
+
+[90mstderr[2m | src/ui/__tests__/qa_round3_independent.spec.tsx[2m > [22m[2mQA-R4 T05 useAiAvailability 三态[2m > [22m[2m无 Key 但 baseUrl 非空（本机 Ollama）→ 真实 probeAi 确实发起 fetch（D3 回归）
+[22m[39mWarning: An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at TestComponent (E:\tools\Hogo-QA-tool\node_modules\@testing-library\react\dist\pure.js:337:5)
+Warning: An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at TestComponent (E:\tools\Hogo-QA-tool\node_modules\@testing-library\react\dist\pure.js:337:5)
+Warning: An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at TestComponent (E:\tools\Hogo-QA-tool\node_modules\@testing-library\react\dist\pure.js:337:5)
+Warning: An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at TestComponent (E:\tools\Hogo-QA-tool\node_modules\@testing-library\react\dist\pure.js:337:5)
+
+[90mstderr[2m | src/ui/__tests__/qa_round3_independent.spec.tsx[2m > [22m[2mQA-R4 T05 useAiAvailability 三态[2m > [22m[2m设置 Key 后 hook 触发探测 → ai（端到端注入）
+[22m[39mWarning: An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at TestComponent (E:\tools\Hogo-QA-tool\node_modules\@testing-library\react\dist\pure.js:337:5)
+Warning: An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at TestComponent (E:\tools\Hogo-QA-tool\node_modules\@testing-library\react\dist\pure.js:337:5)
+Warning: An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at TestComponent (E:\tools\Hogo-QA-tool\node_modules\@testing-library\react\dist\pure.js:337:5)
+Warning: An update to TestComponent inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at TestComponent (E:\tools\Hogo-QA-tool\node_modules\@testing-library\react\dist\pure.js:337:5)
+
+ [32m✓[39m src/ui/__tests__/qa_round3_independent.spec.tsx [2m([22m[2m22 tests[22m[2m)[22m[33m 2047[2mms[22m[39m
+   [33m[2m✓[22m[39m QA-R1 路由渲染目标组件（非兜底重定向）[2m > [22m/import → 渲染该页（非兜底页） [33m444[2mms[22m[39m
+   [33m[2m✓[22m[39m QA-R1 路由渲染目标组件（非兜底重定向）[2m > [22m/settings → 渲染该页（非兜底页） [33m365[2mms[22m[39m
+[90mstderr[2m | src/ui/__tests__/ParetoPage.spec.tsx[2m > [22m[2mParetoPage[2m > [22m[2m无缺陷数据 → 空状态
+[22m[39m⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+
+[90mstderr[2m | src/ui/__tests__/ParetoPage.spec.tsx[2m > [22m[2mParetoPage[2m > [22m[2m有缺陷数据 → 渲染图表与明细表
+[22m[39m[ECharts] Can't get DOM width or height. Please check dom.clientWidth and dom.clientHeight. They should not be 0.For example, you may need to call this in the callback of window.onload.
+
+[90mstderr[2m | src/ui/__tests__/ParetoPage.spec.tsx[2m > [22m[2mParetoPage[2m > [22m[2m明细表首行为最大项（降序）
+[22m[39m[ECharts] Can't get DOM width or height. Please check dom.clientWidth and dom.clientHeight. They should not be 0.For example, you may need to call this in the callback of window.onload.
+
+[90mstderr[2m | src/ui/__tests__/OutlierUI.spec.tsx[2m > [22m[2mCapabilityPage —— 异常值两步确认[2m > [22m[2m检测到候选后展示异常值表（默认未勾选）
+[22m[39m[ECharts] Can't get DOM width or height. Please check dom.clientWidth and dom.clientHeight. They should not be 0.For example, you may need to call this in the callback of window.onload.
+⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+
+[90mstderr[2m | src/ui/__tests__/ControlChart.spec.tsx[2m > [22m[2mControlChart 组件[2m > [22m[2m渲染主图容器 testid
+[22m[39m[ECharts] Can't get DOM width or height. Please check dom.clientWidth and dom.clientHeight. They should not be 0.For example, you may need to call this in the callback of window.onload.
+[ECharts] Can't get DOM width or height. Please check dom.clientWidth and dom.clientHeight. They should not be 0.For example, you may need to call this in the callback of window.onload.
+⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+
+[90mstderr[2m | src/ui/__tests__/ControlChart.spec.tsx[2m > [22m[2mControlChartPage —— 控制图页[2m > [22m[2m渲染图型选择、规则开关容器与判异明细表
+[22m[39m[ECharts] Can't get DOM width or height. Please check dom.clientWidth and dom.clientHeight. They should not be 0.For example, you may need to call this in the callback of window.onload.
+[ECharts] Can't get DOM width or height. Please check dom.clientWidth and dom.clientHeight. They should not be 0.For example, you may need to call this in the callback of window.onload.
+
+[90mstderr[2m | src/ui/__tests__/ControlChart.spec.tsx[2m > [22m[2mControlChartPage —— 控制图页[2m > [22m[2m切换图型到计数型（无不良输入）显示错误提示
+[22m[39m[ECharts] Can't get DOM width or height. Please check dom.clientWidth and dom.clientHeight. They should not be 0.For example, you may need to call this in the callback of window.onload.
+[ECharts] Can't get DOM width or height. Please check dom.clientWidth and dom.clientHeight. They should not be 0.For example, you may need to call this in the callback of window.onload.
+
+[90mstderr[2m | src/ui/__tests__/ControlChart.spec.tsx[2m > [22m[2mControlChartPage —— 控制图页[2m > [22m[2m规则开关可关闭（西方电气全关）
+[22m[39m[ECharts] Can't get DOM width or height. Please check dom.clientWidth and dom.clientHeight. They should not be 0.For example, you may need to call this in the callback of window.onload.
+[ECharts] Can't get DOM width or height. Please check dom.clientWidth and dom.clientHeight. They should not be 0.For example, you may need to call this in the callback of window.onload.
+
+[90mstderr[2m | src/ui/__tests__/ControlChart.spec.tsx[2m > [22m[2mControlChartPage —— 控制图页[2m > [22m[2m切换特性后清除选中点定位
+[22m[39m[ECharts] Can't get DOM width or height. Please check dom.clientWidth and dom.clientHeight. They should not be 0.For example, you may need to call this in the callback of window.onload.
+[ECharts] Can't get DOM width or height. Please check dom.clientWidth and dom.clientHeight. They should not be 0.For example, you may need to call this in the callback of window.onload.
+
+ [32m✓[39m src/ui/__tests__/ControlChart.spec.tsx [2m([22m[2m13 tests[22m[2m)[22m[33m 1831[2mms[22m[39m
+   [33m[2m✓[22m[39m ControlChartPage —— 控制图页[2m > [22m渲染图型选择、规则开关容器与判异明细表 [33m484[2mms[22m[39m
+   [33m[2m✓[22m[39m ControlChartPage —— 控制图页[2m > [22m切换图型到计数型（无不良输入）显示错误提示 [33m448[2mms[22m[39m
+   [33m[2m✓[22m[39m ControlChartPage —— 控制图页[2m > [22m规则开关可关闭（西方电气全关） [33m312[2mms[22m[39m
+[90mstderr[2m | src/ui/__tests__/ParetoPage.spec.tsx[2m > [22m[2mParetoPage[2m > [22m[2m可通过「使用示例数据」加载演示数据
+[22m[39m[ECharts] Can't get DOM width or height. Please check dom.clientWidth and dom.clientHeight. They should not be 0.For example, you may need to call this in the callback of window.onload.
+
+ [32m✓[39m src/ui/__tests__/ProjectLibraryPage.spec.tsx [2m([22m[2m6 tests[22m[2m)[22m[33m 1201[2mms[22m[39m
+   [33m[2m✓[22m[39m ProjectLibraryPage[2m > [22m重命名项目 → 列表更新 [33m367[2mms[22m[39m
+[90mstderr[2m | src/ui/__tests__/ParetoPage.spec.tsx[2m > [22m[2mParetoPage[2m > [22m[2m累计占比列显示 2 位小数百分比
+[22m[39m[ECharts] Can't get DOM width or height. Please check dom.clientWidth and dom.clientHeight. They should not be 0.For example, you may need to call this in the callback of window.onload.
+
+ [32m✓[39m src/ui/__tests__/ParetoPage.spec.tsx [2m([22m[2m5 tests[22m[2m)[22m[33m 781[2mms[22m[39m
+   [33m[2m✓[22m[39m ParetoPage[2m > [22m无缺陷数据 → 空状态 [33m320[2mms[22m[39m
+[90mstderr[2m | src/ui/__tests__/OutlierUI.spec.tsx[2m > [22m[2mCapabilityPage —— 异常值两步确认[2m > [22m[2m勾选 → 确认排除 → 写入 projectStore
+[22m[39m[ECharts] Can't get DOM width or height. Please check dom.clientWidth and dom.clientHeight. They should not be 0.For example, you may need to call this in the callback of window.onload.
+
+[90mstderr[2m | src/ui/__tests__/OutlierUI.spec.tsx[2m > [22m[2mCapabilityPage —— 异常值两步确认[2m > [22m[2m未勾选时确认按钮禁用
+[22m[39m[ECharts] Can't get DOM width or height. Please check dom.clientWidth and dom.clientHeight. They should not be 0.For example, you may need to call this in the callback of window.onload.
+
+ [32m✓[39m src/ui/__tests__/OutlierUI.spec.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 1221[2mms[22m[39m
+   [33m[2m✓[22m[39m CapabilityPage —— 异常值两步确认[2m > [22m检测到候选后展示异常值表（默认未勾选） [33m810[2mms[22m[39m
+[90mstderr[2m | src/ui/__tests__/ImportPage.spec.tsx[2m > [22m[2mImportPage —— 粘贴导入[2m > [22m[2m渲染拖拽区与页签
+[22m[39m⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+
+ [32m✓[39m src/ui/__tests__/ImportPage.spec.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 795[2mms[22m[39m
+   [33m[2m✓[22m[39m ImportPage —— 粘贴导入[2m > [22m粘贴 CSV → 解析 → 展示校验统计与预览 [33m438[2mms[22m[39m
+[90mstderr[2m | src/ui/__tests__/AppShell.spec.tsx[2m > [22m[2mAppShell —— 布局与导航[2m > [22m[2m渲染侧栏与全部导航项
+[22m[39m⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+
+[90mstderr[2m | src/ui/__tests__/AppShell.spec.tsx[2m > [22m[2mAppShell —— 布局与导航[2m > [22m[2mAI 模式时徽标切换为 AI 模式
+[22m[39mWarning: An update to ModeBadge inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at ModeBadge (E:\tools\Hogo-QA-tool\src\ui\components\ModeBadge.tsx:12:38)
+    at div
+    at E:\tools\Hogo-QA-tool\node_modules\@emotion\react\dist\emotion-element-e8f4cc37.development.cjs.js:60:23
+    at Toolbar (E:\tools\Hogo-QA-tool\node_modules\@mui\material\node\Toolbar\Toolbar.js:63:59)
+    at header
+    at E:\tools\Hogo-QA-tool\node_modules\@emotion\react\dist\emotion-element-e8f4cc37.development.cjs.js:60:23
+    at Paper (E:\tools\Hogo-QA-tool\node_modules\@mui\material\node\Paper\Paper.js:70:59)
+    at E:\tools\Hogo-QA-tool\node_modules\@emotion\react\dist\emotion-element-e8f4cc37.development.cjs.js:60:23
+    at AppBar (E:\tools\Hogo-QA-tool\node_modules\@mui\material\node\AppBar\AppBar.js:120:59)
+    at TopBar (E:\tools\Hogo-QA-tool\src\ui\layout\TopBar.tsx:22:47)
+    at div
+    at E:\tools\Hogo-QA-tool\node_modules\@emotion\react\dist\emotion-element-e8f4cc37.development.cjs.js:60:23
+    at Box (E:\tools\Hogo-QA-tool\node_modules\@mui\system\createBox.js:31:41)
+    at AppShell
+    at Router (E:\tools\Hogo-QA-tool\node_modules\react-router\dist\umd\react-router.development.js:1203:17)
+    at MemoryRouter (E:\tools\Hogo-QA-tool\node_modules\react-router\dist\umd\react-router.development.js:1097:7)
+    at DefaultPropsProvider (E:\tools\Hogo-QA-tool\node_modules\@mui\system\DefaultPropsProvider\DefaultPropsProvider.js:18:3)
+    at RtlProvider (E:\tools\Hogo-QA-tool\node_modules\@mui\system\RtlProvider\index.js:19:7)
+    at ThemeProvider (E:\tools\Hogo-QA-tool\node_modules\@mui\private-theming\node\ThemeProvider\ThemeProvider.js:39:5)
+    at ThemeProvider (E:\tools\Hogo-QA-tool\node_modules\@mui\system\ThemeProvider\ThemeProvider.js:53:5)
+    at ThemeProvider (E:\tools\Hogo-QA-tool\node_modules\@mui\material\node\styles\ThemeProvider.js:21:14)
+Warning: An update to ModeBadge inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at ModeBadge (E:\tools\Hogo-QA-tool\src\ui\components\ModeBadge.tsx:12:38)
+    at div
+    at E:\tools\Hogo-QA-tool\node_modules\@emotion\react\dist\emotion-element-e8f4cc37.development.cjs.js:60:23
+    at Toolbar (E:\tools\Hogo-QA-tool\node_modules\@mui\material\node\Toolbar\Toolbar.js:63:59)
+    at header
+    at E:\tools\Hogo-QA-tool\node_modules\@emotion\react\dist\emotion-element-e8f4cc37.development.cjs.js:60:23
+    at Paper (E:\tools\Hogo-QA-tool\node_modules\@mui\material\node\Paper\Paper.js:70:59)
+    at E:\tools\Hogo-QA-tool\node_modules\@emotion\react\dist\emotion-element-e8f4cc37.development.cjs.js:60:23
+    at AppBar (E:\tools\Hogo-QA-tool\node_modules\@mui\material\node\AppBar\AppBar.js:120:59)
+    at TopBar (E:\tools\Hogo-QA-tool\src\ui\layout\TopBar.tsx:22:47)
+    at div
+    at E:\tools\Hogo-QA-tool\node_modules\@emotion\react\dist\emotion-element-e8f4cc37.development.cjs.js:60:23
+    at Box (E:\tools\Hogo-QA-tool\node_modules\@mui\system\createBox.js:31:41)
+    at AppShell
+    at Router (E:\tools\Hogo-QA-tool\node_modules\react-router\dist\umd\react-router.development.js:1203:17)
+    at MemoryRouter (E:\tools\Hogo-QA-tool\node_modules\react-router\dist\umd\react-router.development.js:1097:7)
+    at DefaultPropsProvider (E:\tools\Hogo-QA-tool\node_modules\@mui\system\DefaultPropsProvider\DefaultPropsProvider.js:18:3)
+    at RtlProvider (E:\tools\Hogo-QA-tool\node_modules\@mui\system\RtlProvider\index.js:19:7)
+    at ThemeProvider (E:\tools\Hogo-QA-tool\node_modules\@mui\private-theming\node\ThemeProvider\ThemeProvider.js:39:5)
+    at ThemeProvider (E:\tools\Hogo-QA-tool\node_modules\@mui\system\ThemeProvider\ThemeProvider.js:53:5)
+    at ThemeProvider (E:\tools\Hogo-QA-tool\node_modules\@mui\material\node\styles\ThemeProvider.js:21:14)
+Warning: An update to ModeBadge inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at ModeBadge (E:\tools\Hogo-QA-tool\src\ui\components\ModeBadge.tsx:12:38)
+    at div
+    at E:\tools\Hogo-QA-tool\node_modules\@emotion\react\dist\emotion-element-e8f4cc37.development.cjs.js:60:23
+    at Toolbar (E:\tools\Hogo-QA-tool\node_modules\@mui\material\node\Toolbar\Toolbar.js:63:59)
+    at header
+    at E:\tools\Hogo-QA-tool\node_modules\@emotion\react\dist\emotion-element-e8f4cc37.development.cjs.js:60:23
+    at Paper (E:\tools\Hogo-QA-tool\node_modules\@mui\material\node\Paper\Paper.js:70:59)
+    at E:\tools\Hogo-QA-tool\node_modules\@emotion\react\dist\emotion-element-e8f4cc37.development.cjs.js:60:23
+    at AppBar (E:\tools\Hogo-QA-tool\node_modules\@mui\material\node\AppBar\AppBar.js:120:59)
+    at TopBar (E:\tools\Hogo-QA-tool\src\ui\layout\TopBar.tsx:22:47)
+    at div
+    at E:\tools\Hogo-QA-tool\node_modules\@emotion\react\dist\emotion-element-e8f4cc37.development.cjs.js:60:23
+    at Box (E:\tools\Hogo-QA-tool\node_modules\@mui\system\createBox.js:31:41)
+    at AppShell
+    at Router (E:\tools\Hogo-QA-tool\node_modules\react-router\dist\umd\react-router.development.js:1203:17)
+    at MemoryRouter (E:\tools\Hogo-QA-tool\node_modules\react-router\dist\umd\react-router.development.js:1097:7)
+    at DefaultPropsProvider (E:\tools\Hogo-QA-tool\node_modules\@mui\system\DefaultPropsProvider\DefaultPropsProvider.js:18:3)
+    at RtlProvider (E:\tools\Hogo-QA-tool\node_modules\@mui\system\RtlProvider\index.js:19:7)
+    at ThemeProvider (E:\tools\Hogo-QA-tool\node_modules\@mui\private-theming\node\ThemeProvider\ThemeProvider.js:39:5)
+    at ThemeProvider (E:\tools\Hogo-QA-tool\node_modules\@mui\system\ThemeProvider\ThemeProvider.js:53:5)
+    at ThemeProvider (E:\tools\Hogo-QA-tool\node_modules\@mui\material\node\styles\ThemeProvider.js:21:14)
+Warning: An update to ModeBadge inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at ModeBadge (E:\tools\Hogo-QA-tool\src\ui\components\ModeBadge.tsx:12:38)
+    at div
+    at E:\tools\Hogo-QA-tool\node_modules\@emotion\react\dist\emotion-element-e8f4cc37.development.cjs.js:60:23
+    at Toolbar (E:\tools\Hogo-QA-tool\node_modules\@mui\material\node\Toolbar\Toolbar.js:63:59)
+    at header
+    at E:\tools\Hogo-QA-tool\node_modules\@emotion\react\dist\emotion-element-e8f4cc37.development.cjs.js:60:23
+    at Paper (E:\tools\Hogo-QA-tool\node_modules\@mui\material\node\Paper\Paper.js:70:59)
+    at E:\tools\Hogo-QA-tool\node_modules\@emotion\react\dist\emotion-element-e8f4cc37.development.cjs.js:60:23
+    at AppBar (E:\tools\Hogo-QA-tool\node_modules\@mui\material\node\AppBar\AppBar.js:120:59)
+    at TopBar (E:\tools\Hogo-QA-tool\src\ui\layout\TopBar.tsx:22:47)
+    at div
+    at E:\tools\Hogo-QA-tool\node_modules\@emotion\react\dist\emotion-element-e8f4cc37.development.cjs.js:60:23
+    at Box (E:\tools\Hogo-QA-tool\node_modules\@mui\system\createBox.js:31:41)
+    at AppShell
+    at Router (E:\tools\Hogo-QA-tool\node_modules\react-router\dist\umd\react-router.development.js:1203:17)
+    at MemoryRouter (E:\tools\Hogo-QA-tool\node_modules\react-router\dist\umd\react-router.development.js:1097:7)
+    at DefaultPropsProvider (E:\tools\Hogo-QA-tool\node_modules\@mui\system\DefaultPropsProvider\DefaultPropsProvider.js:18:3)
+    at RtlProvider (E:\tools\Hogo-QA-tool\node_modules\@mui\system\RtlProvider\index.js:19:7)
+    at ThemeProvider (E:\tools\Hogo-QA-tool\node_modules\@mui\private-theming\node\ThemeProvider\ThemeProvider.js:39:5)
+    at ThemeProvider (E:\tools\Hogo-QA-tool\node_modules\@mui\system\ThemeProvider\ThemeProvider.js:53:5)
+    at ThemeProvider (E:\tools\Hogo-QA-tool\node_modules\@mui\material\node\styles\ThemeProvider.js:21:14)
+Warning: An update to AiGate inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at AiGate (E:\tools\Hogo-QA-tool\src\ui\components\AiGate.tsx:8:3)
+    at div
+    at E:\tools\Hogo-QA-tool\node_modules\@emotion\react\dist\emotion-element-e8f4cc37.development.cjs.js:60:23
+    at Toolbar (E:\tools\Hogo-QA-tool\node_modules\@mui\material\node\Toolbar\Toolbar.js:63:59)
+    at header
+    at E:\tools\Hogo-QA-tool\node_modules\@emotion\react\dist\emotion-element-e8f4cc37.development.cjs.js:60:23
+    at Paper (E:\tools\Hogo-QA-tool\node_modules\@mui\material\node\Paper\Paper.js:70:59)
+    at E:\tools\Hogo-QA-tool\node_modules\@emotion\react\dist\emotion-element-e8f4cc37.development.cjs.js:60:23
+    at AppBar (E:\tools\Hogo-QA-tool\node_modules\@mui\material\node\AppBar\AppBar.js:120:59)
+    at TopBar (E:\tools\Hogo-QA-tool\src\ui\layout\TopBar.tsx:22:47)
+    at div
+    at E:\tools\Hogo-QA-tool\node_modules\@emotion\react\dist\emotion-element-e8f4cc37.development.cjs.js:60:23
+    at Box (E:\tools\Hogo-QA-tool\node_modules\@mui\system\createBox.js:31:41)
+    at AppShell
+    at Router (E:\tools\Hogo-QA-tool\node_modules\react-router\dist\umd\react-router.development.js:1203:17)
+    at MemoryRouter (E:\tools\Hogo-QA-tool\node_modules\react-router\dist\umd\react-router.development.js:1097:7)
+    at DefaultPropsProvider (E:\tools\Hogo-QA-tool\node_modules\@mui\system\DefaultPropsProvider\DefaultPropsProvider.js:18:3)
+    at RtlProvider (E:\tools\Hogo-QA-tool\node_modules\@mui\system\RtlProvider\index.js:19:7)
+    at ThemeProvider (E:\tools\Hogo-QA-tool\node_modules\@mui\private-theming\node\ThemeProvider\ThemeProvider.js:39:5)
+    at ThemeProvider (E:\tools\Hogo-QA-tool\node_modules\@mui\system\ThemeProvider\ThemeProvider.js:53:5)
+    at ThemeProvider (E:\tools\Hogo-QA-tool\node_modules\@mui\material\node\styles\ThemeProvider.js:21:14)
+Warning: An update to AiGate inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at AiGate (E:\tools\Hogo-QA-tool\src\ui\components\AiGate.tsx:8:3)
+    at div
+    at E:\tools\Hogo-QA-tool\node_modules\@emotion\react\dist\emotion-element-e8f4cc37.development.cjs.js:60:23
+    at Toolbar (E:\tools\Hogo-QA-tool\node_modules\@mui\material\node\Toolbar\Toolbar.js:63:59)
+    at header
+    at E:\tools\Hogo-QA-tool\node_modules\@emotion\react\dist\emotion-element-e8f4cc37.development.cjs.js:60:23
+    at Paper (E:\tools\Hogo-QA-tool\node_modules\@mui\material\node\Paper\Paper.js:70:59)
+    at E:\tools\Hogo-QA-tool\node_modules\@emotion\react\dist\emotion-element-e8f4cc37.development.cjs.js:60:23
+    at AppBar (E:\tools\Hogo-QA-tool\node_modules\@mui\material\node\AppBar\AppBar.js:120:59)
+    at TopBar (E:\tools\Hogo-QA-tool\src\ui\layout\TopBar.tsx:22:47)
+    at div
+    at E:\tools\Hogo-QA-tool\node_modules\@emotion\react\dist\emotion-element-e8f4cc37.development.cjs.js:60:23
+    at Box (E:\tools\Hogo-QA-tool\node_modules\@mui\system\createBox.js:31:41)
+    at AppShell
+    at Router (E:\tools\Hogo-QA-tool\node_modules\react-router\dist\umd\react-router.development.js:1203:17)
+    at MemoryRouter (E:\tools\Hogo-QA-tool\node_modules\react-router\dist\umd\react-router.development.js:1097:7)
+    at DefaultPropsProvider (E:\tools\Hogo-QA-tool\node_modules\@mui\system\DefaultPropsProvider\DefaultPropsProvider.js:18:3)
+    at RtlProvider (E:\tools\Hogo-QA-tool\node_modules\@mui\system\RtlProvider\index.js:19:7)
+    at ThemeProvider (E:\tools\Hogo-QA-tool\node_modules\@mui\private-theming\node\ThemeProvider\ThemeProvider.js:39:5)
+    at ThemeProvider (E:\tools\Hogo-QA-tool\node_modules\@mui\system\ThemeProvider\ThemeProvider.js:53:5)
+    at ThemeProvider (E:\tools\Hogo-QA-tool\node_modules\@mui\material\node\styles\ThemeProvider.js:21:14)
+Warning: An update to ForwardRef(Tooltip) inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at Tooltip (E:\tools\Hogo-QA-tool\node_modules\@mui\material\node\Tooltip\Tooltip.js:229:59)
+    at AiGate (E:\tools\Hogo-QA-tool\src\ui\components\AiGate.tsx:8:3)
+    at div
+    at E:\tools\Hogo-QA-tool\node_modules\@emotion\react\dist\emotion-element-e8f4cc37.development.cjs.js:60:23
+    at Toolbar (E:\tools\Hogo-QA-tool\node_modules\@mui\material\node\Toolbar\Toolbar.js:63:59)
+    at header
+    at E:\tools\Hogo-QA-tool\node_modules\@emotion\react\dist\emotion-element-e8f4cc37.development.cjs.js:60:23
+    at Paper (E:\tools\Hogo-QA-tool\node_modules\@mui\material\node\Paper\Paper.js:70:59)
+    at E:\tools\Hogo-QA-tool\node_modules\@emotion\react\dist\emotion-element-e8f4cc37.development.cjs.js:60:23
+    at AppBar (E:\tools\Hogo-QA-tool\node_modules\@mui\material\node\AppBar\AppBar.js:120:59)
+    at TopBar (E:\tools\Hogo-QA-tool\src\ui\layout\TopBar.tsx:22:47)
+    at div
+    at E:\tools\Hogo-QA-tool\node_modules\@emotion\react\dist\emotion-element-e8f4cc37.development.cjs.js:60:23
+    at Box (E:\tools\Hogo-QA-tool\node_modules\@mui\system\createBox.js:31:41)
+    at AppShell
+    at Router (E:\tools\Hogo-QA-tool\node_modules\react-router\dist\umd\react-router.development.js:1203:17)
+    at MemoryRouter (E:\tools\Hogo-QA-tool\node_modules\react-router\dist\umd\react-router.development.js:1097:7)
+    at DefaultPropsProvider (E:\tools\Hogo-QA-tool\node_modules\@mui\system\DefaultPropsProvider\DefaultPropsProvider.js:18:3)
+    at RtlProvider (E:\tools\Hogo-QA-tool\node_modules\@mui\system\RtlProvider\index.js:19:7)
+    at ThemeProvider (E:\tools\Hogo-QA-tool\node_modules\@mui\private-theming\node\ThemeProvider\ThemeProvider.js:39:5)
+    at ThemeProvider (E:\tools\Hogo-QA-tool\node_modules\@mui\system\ThemeProvider\ThemeProvider.js:53:5)
+    at ThemeProvider (E:\tools\Hogo-QA-tool\node_modules\@mui\material\node\styles\ThemeProvider.js:21:14)
+Warning: An update to ForwardRef(ButtonBase) inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+    at ButtonBase (E:\tools\Hogo-QA-tool\node_modules\@mui\material\node\ButtonBase\ButtonBase.js:94:59)
+    at E:\tools\Hogo-QA-tool\node_modules\@emotion\react\dist\emotion-element-e8f4cc37.development.cjs.js:60:23
+    at Button (E:\tools\Hogo-QA-tool\node_modules\@mui\material\node\Button\Button.js:231:30)
+    at Tooltip (E:\tools\Hogo-QA-tool\node_modules\@mui\material\node\Tooltip\Tooltip.js:229:59)
+    at AiGate (E:\tools\Hogo-QA-tool\src\ui\components\AiGate.tsx:8:3)
+    at div
+    at E:\tools\Hogo-QA-tool\node_modules\@emotion\react\dist\emotion-element-e8f4cc37.development.cjs.js:60:23
+    at Toolbar (E:\tools\Hogo-QA-tool\node_modules\@mui\material\node\Toolbar\Toolbar.js:63:59)
+    at header
+    at E:\tools\Hogo-QA-tool\node_modules\@emotion\react\dist\emotion-element-e8f4cc37.development.cjs.js:60:23
+    at Paper (E:\tools\Hogo-QA-tool\node_modules\@mui\material\node\Paper\Paper.js:70:59)
+    at E:\tools\Hogo-QA-tool\node_modules\@emotion\react\dist\emotion-element-e8f4cc37.development.cjs.js:60:23
+    at AppBar (E:\tools\Hogo-QA-tool\node_modules\@mui\material\node\AppBar\AppBar.js:120:59)
+    at TopBar (E:\tools\Hogo-QA-tool\src\ui\layout\TopBar.tsx:22:47)
+    at div
+    at E:\tools\Hogo-QA-tool\node_modules\@emotion\react\dist\emotion-element-e8f4cc37.development.cjs.js:60:23
+    at Box (E:\tools\Hogo-QA-tool\node_modules\@mui\system\createBox.js:31:41)
+    at AppShell
+    at Router (E:\tools\Hogo-QA-tool\node_modules\react-router\dist\umd\react-router.development.js:1203:17)
+    at MemoryRouter (E:\tools\Hogo-QA-tool\node_modules\react-router\dist\umd\react-router.development.js:1097:7)
+    at DefaultPropsProvider (E:\tools\Hogo-QA-tool\node_modules\@mui\system\DefaultPropsProvider\DefaultPropsProvider.js:18:3)
+    at RtlProvider (E:\tools\Hogo-QA-tool\node_modules\@mui\system\RtlProvider\index.js:19:7)
+    at ThemeProvider (E:\tools\Hogo-QA-tool\node_modules\@mui\private-theming\node\ThemeProvider\ThemeProvider.js:39:5)
+    at ThemeProvider (E:\tools\Hogo-QA-tool\node_modules\@mui\system\ThemeProvider\ThemeProvider.js:53:5)
+    at ThemeProvider (E:\tools\Hogo-QA-tool\node_modules\@mui\material\node\styles\ThemeProvider.js:21:14)
+
+ [32m✓[39m src/ui/__tests__/AppShell.spec.tsx [2m([22m[2m5 tests[22m[2m)[22m[33m 1162[2mms[22m[39m
+   [33m[2m✓[22m[39m AppShell —— 布局与导航[2m > [22m渲染侧栏与全部导航项 [33m356[2mms[22m[39m
+   [33m[2m✓[22m[39m AppShell —— 布局与导航[2m > [22m全部 8 条路由均可直接挂载且不渲染占位页 [33m520[2mms[22m[39m
+ [32m✓[39m src/data/__tests__/qa_data_independent.spec.ts [2m([22m[2m26 tests[22m[2m)[22m[33m 21552[2mms[22m[39m
+   [33m[2m✓[22m[39m QA-D5 20 万测量值上限「提示行为」（架构 §0.2 #9；仅提示不阻断不截断）[2m > [22m阈值边界：恰好 200000 条 → 不提示（上限「含」） [33m6094[2mms[22m[39m
+   [33m[2m✓[22m[39m QA-D5 20 万测量值上限「提示行为」（架构 §0.2 #9；仅提示不阻断不截断）[2m > [22m200001 条 → 出现且仅出现 1 条超限提示，measurementCount 不截断 [33m5390[2mms[22m[39m
+   [33m[2m✓[22m[39m QA-D5 20 万测量值上限「提示行为」（架构 §0.2 #9；仅提示不阻断不截断）[2m > [22m超限仅提示：不抛错，且有效测量值全部保留（建模条数一致） [33m5756[2mms[22m[39m
+   [33m[2m✓[22m[39m QA-D5 20 万测量值上限「提示行为」（架构 §0.2 #9；仅提示不阻断不截断）[2m > [22m不同来源文案可区分：xlsx 来源标识存在 [33m4143[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m48 passed[39m[22m[90m (48)[39m
+[2m      Tests [22m [1m[32m731 passed[39m[22m[90m (731)[39m
+[2m   Start at [22m 20:55:01
+[2m   Duration [22m 24.47s[2m (transform 5.13s, setup 3.63s, collect 148.41s, tests 37.64s, environment 20.94s, prepare 7.39s)[22m
+

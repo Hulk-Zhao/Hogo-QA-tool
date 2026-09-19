@@ -1,0 +1,38 @@
+{
+  "ok": true,
+  "modeInfo": {
+    "hasAiMode": true,
+    "hasOffline": false
+  },
+  "typed": "typed",
+  "clicked": "clicked",
+  "assistantReply": "我\n当前哪个特性能力最差？\nAI 助手\n已发送：仅摘要\n复制\n【MOCK-OK】这是本地模拟服务端返回的正文，用于验证客户端接线与渲染路径是否真的贯通。\n发送字段：projectName、characteristicCount、totalMeasurements",
+  "capturedRequests": [
+    {
+      "method": "GET",
+      "url": "/v1/models",
+      "body": null
+    },
+    {
+      "method": "POST",
+      "url": "/v1/chat/completions",
+      "body": {
+        "model": "qwen3.5:9b",
+        "messages": [
+          {
+            "role": "system",
+            "content": "你是质量数据问答助手。**仅基于提供的项目统计摘要**回答用户问题，开头须声明「以下回答仅基于统计摘要，未使用原始明细数据」。若摘要不足以回答，请明确说明。"
+          },
+          {
+            "role": "user",
+            "content": "【任务】数据问答\n【统计摘要（JSON）】\n{\n  \"projectName\": \"未命名项目\",\n  \"characteristicCount\": 0,\n  \"totalMeasurements\": 0\n}\n\n【用户补充/问题】\n当前哪个特性能力最差？"
+          }
+        ],
+        "temperature": 0.2,
+        "max_tokens": 29019,
+        "stream": false,
+        "reasoning_effort": "none"
+      }
+    }
+  ]
+}

@@ -1,0 +1,1 @@
+src/__probe_type_error.ts(1,14): error TS2322: Type 'string' is not assignable to type 'number'.

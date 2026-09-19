@@ -1,0 +1,18 @@
+<!doctype html><html><head><meta charset="utf-8"><title>cors-probe</title></head><body>
+<div id="o">pending</div>
+<pre id="d"></pre>
+<script>
+(async () => {
+  const o = document.getElementById('o');
+  const d = document.getElementById('d');
+  d.textContent = 'origin=' + window.location.origin + ' protocol=' + window.location.protocol;
+  try {
+    const r = await fetch('http://127.0.0.1:11434/v1/models');
+    o.textContent = 'FETCH_OK status=' + r.status;
+    const t = await r.text();
+    d.textContent += ' | bodyLen=' + t.length;
+  } catch (e) {
+    o.textContent = 'FETCH_FAIL ' + e.name + ': ' + e.message;
+  }
+})();
+</script></body></html>

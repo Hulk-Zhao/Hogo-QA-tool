@@ -1,0 +1,233 @@
+classDiagram
+    direction LR
+    class Project {
+        +string id
+        +string name
+        +string description
+        +string createdAt
+        +string updatedAt
+        +number schemaVersion
+        +Dataset[] datasets
+        +AnalysisConfig[] analysisConfigs
+        +AiUsageLog[] aiUsageLogs
+    }
+    class Dataset {
+        +string id
+        +string projectId
+        +string name
+        +string sourceType
+        +string importedAt
+        +string rawFileName
+        +Characteristic[] characteristics
+        +DefectRecord[] defectRecords
+    }
+    class Characteristic {
+        +string id
+        +string datasetId
+        +string name
+        +SpecLimits specLimits
+        +Measurement[] measurements
+        +PersistedSubgroup[] subgroups
+        +number nullCount
+        +OutlierFlag[] outlierFlags
+    }
+    class SpecLimits {
+        +number usl
+        +number lsl
+        +number target
+        +string unit
+    }
+    class Measurement {
+        +string id
+        +string characteristicId
+        +number value
+        +string subgroupId
+        +string timestamp
+        +string batch
+        +boolean excluded
+        +string excludeReason
+    }
+    class PersistedSubgroup {
+        +string id
+        +string characteristicId
+        +number index
+        +number size
+        +string[] measurementIds
+        +number mean
+        +number range
+        +number std
+    }
+    class DefectRecord {
+        +string id
+        +string datasetId
+        +string defectType
+        +number count
+        +string category
+    }
+    class AnalysisConfig {
+        +string id
+        +string projectId
+        +number subgroupCapacity
+        +string subgroupMode
+        +string sigmaMode
+        +string outlierMethod
+        +string[] outlierConfirmedIds
+    }
+    class AiUsageLog {
+        +string id
+        +string projectId
+        +string feature
+        +string sentPayloadScope
+        +string model
+        +string requestedAt
+        +boolean ok
+    }
+
+    class CapabilityResult {
+        +number n
+        +number mean
+        +SigmaEstimate sigma
+        +number ca
+        +number cp
+        +number cpk
+        +number pp
+        +number ppk
+        +number sigmaLevelShort
+        +number sigmaLevelBench
+        +number ppmOverall
+        +number ppmWithin
+        +string[] warnings
+    }
+    class SigmaEstimate {
+        +string mode
+        +number within
+        +number overall
+        +number rBar
+        +number sBar
+        +number mrBar
+        +string basis
+    }
+    class SubgroupStats {
+        +string id
+        +number index
+        +number size
+        +number[] values
+        +number mean
+        +number range
+        +number std
+    }
+    class ControlChartSeries {
+        +object primary
+        +object secondary
+        +object limits
+        +object sigmaZones
+        +ControlChartConstants constantsUsed
+        +string selectedType
+    }
+    class ControlChartConstants {
+        +number n
+        +number A2
+        +number A3
+        +number D3
+        +number D4
+        +number B3
+        +number B4
+        +number d2
+        +number E2
+        +number c4
+    }
+    class RuleViolation {
+        +string ruleId
+        +string ruleGroup
+        +number[] pointIndices
+        +number windowStart
+        +string message
+        +string severity
+    }
+    class NormalityResult {
+        +string method
+        +number statistic
+        +number pValue
+        +boolean isNormal
+        +string note
+    }
+    class ParetoResult {
+        +ParetoItem[] items
+        +number total
+        +number crossingIndex
+        +number threshold
+    }
+
+    class StatsService {
+        +computeCapability(values, spec, subgroups, opts) CapabilityResult
+        +buildSubgroups(measurements, config) SubgroupStats[]
+        +detectOutliers(values, method, alpha) OutlierFlag[]
+    }
+    class ChartService {
+        +buildControlChart(type, inputs) ControlChartSeries
+        +getConstants(n) ControlChartConstants
+    }
+    class RuleService {
+        +evaluateRules(series, sigmaByPoint, toggles) RuleEvaluationResult
+        +dedupeViolations(vs, showEquivalent) RuleViolation[]
+    }
+    class NormalityService {
+        +testNormality(values) object
+        +andersonDarling(values) NormalityResult
+        +shapiroWilk(values) NormalityResult
+    }
+    class ParetoService {
+        +buildPareto(records, threshold) ParetoResult
+    }
+    class ProjectRepository {
+        <<interface>>
+        +listProjects() ProjectSummary[]
+        +getProject(id) Project
+        +saveProject(project) void
+        +deleteProject(id) void
+        +readMeasurements(ref) Measurement[]
+        +writeMeasurements(ref, data) void
+    }
+    class AiService {
+        <<interface>>
+        +testConnectivity(config) object
+        +explainChart(ctx, config, allowRaw) AiResponse
+        +explainCapability(ctx, config) AiResponse
+        +suggest(ctx, config) AiResponse
+        +generateReport(ctx, config) AiResponse
+        +ask(question, ctx, config, allowRaw) AiResponse
+    }
+    class PayloadBuilder {
+        +buildPayload(feature, summary, allowRawData, rawData) object
+    }
+    class Exporter {
+        +exportProjectPackage(project) Blob
+        +exportExcelReport(project) Blob
+    }
+
+    Project "1" --> "*" Dataset : contains
+    Project "1" --> "*" AnalysisConfig : has
+    Project "1" --> "*" AiUsageLog : logs
+    Dataset "1" --> "*" Characteristic : contains
+    Dataset "1" --> "*" DefectRecord : contains
+    Characteristic "1" --> "1" SpecLimits : has
+    Characteristic "1" --> "*" Measurement : has
+    Characteristic "1" --> "*" PersistedSubgroup : has
+    PersistedSubgroup "1" --> "*" Measurement : groups
+    Measurement "1" --> "0..1" OutlierFlag : flagged
+
+    StatsService ..> CapabilityResult : produces
+    StatsService ..> SigmaEstimate : uses
+    StatsService ..> SubgroupStats : uses
+    ChartService ..> ControlChartSeries : produces
+    ChartService ..> ControlChartConstants : uses
+    RuleService ..> ControlChartSeries : consumes
+    RuleService ..> RuleViolation : produces
+    NormalityService ..> NormalityResult : produces
+    ParetoService ..> ParetoResult : produces
+
+    ProjectRepository ..> Project : persists
+    Exporter ..> Project : consumes
+    AiService ..> PayloadBuilder : uses
+    AiService ..> CapabilityResult : summarizes
+    AiService ..> RuleViolation : summarizes
