@@ -9,7 +9,8 @@
 
 import { Box } from '@mui/material';
 import { Navigate, Route, Routes } from 'react-router-dom';
-import type { ReactElement } from 'react';
+import { useEffect, type ReactElement } from 'react';
+import { ensurePrintSnapshotBinding } from '@/ui/charts/printLayout';
 import Sidebar from './Sidebar';
 import TopBar from './TopBar';
 import { DEFAULT_ROUTE } from './navItems';
@@ -22,6 +23,7 @@ import AiAssistantPage from '@/ui/pages/AiAssistantPage';
 import SettingsPage from '@/ui/pages/SettingsPage';
 import ProjectLibraryPage from '@/ui/pages/ProjectLibraryPage';
 import ErrorBoundary from '@/ui/components/ErrorBoundary';
+import ToastHost from '@/ui/components/ToastHost';
 
 /**
  * 渲染应用主壳。
@@ -29,12 +31,25 @@ import ErrorBoundary from '@/ui/components/ErrorBoundary';
  * @returns 布局元素
  */
 export default function AppShell(): ReactElement {
+  // 打印快照引擎的全局接线：beforeprint 时同步把图表换成分辨率足够的位图。
+  // 放在这里而不是图表组件里，是为了「任何页面、任何图表」都被覆盖。
+  useEffect(() => {
+    ensurePrintSnapshotBinding();
+  }, []);
+
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', bgcolor: 'background.default' }}>
+    <Box
+      className="print-shell"
+      sx={{ display: 'flex', flexDirection: 'column', height: '100vh', bgcolor: 'background.default' }}
+    >
       <TopBar />
       <Box sx={{ display: 'flex', flexGrow: 1, minHeight: 0 }}>
         <Sidebar />
-        <Box component="main" sx={{ flexGrow: 1, minWidth: 0, overflow: 'auto', p: 2.5 }}>
+        <Box
+          component="main"
+          className="print-main"
+          sx={{ flexGrow: 1, minWidth: 0, overflow: 'auto', p: 2.5 }}
+        >
           <ErrorBoundary>
             <Routes>
               <Route path="/" element={<Navigate to={DEFAULT_ROUTE} replace />} />
@@ -51,6 +66,8 @@ export default function AppShell(): ReactElement {
           </ErrorBoundary>
         </Box>
       </Box>
+      {/* 全局提示：uiStore.pushToast 的落地出口（此前没有任何组件消费它）。 */}
+      <ToastHost />
     </Box>
   );
 }

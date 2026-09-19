@@ -1,0 +1,156 @@
+{
+  "steps": [
+    "OK: 应用加载",
+    "OK: 导入页",
+    "OK: 粘贴框",
+    "OK: 解析完成",
+    "OK: 能力页",
+    "OK: 报表页"
+  ],
+  "browser": {
+    "dpr": 1,
+    "innerW": 794,
+    "docScrollW": 779,
+    "canvases": [
+      {
+        "cssW": 700,
+        "cssH": 375,
+        "attrW": 2100,
+        "attrH": 1125,
+        "ratio": 3
+      },
+      {
+        "cssW": 700,
+        "cssH": 263,
+        "attrW": 2100,
+        "attrH": 789,
+        "ratio": 3
+      },
+      {
+        "cssW": 700,
+        "cssH": 400,
+        "attrW": 2100,
+        "attrH": 1200,
+        "ratio": 3
+      }
+    ],
+    "chartsBox": {
+      "w": 739,
+      "left": 20
+    }
+  },
+  "pdf": {
+    "pages": 4,
+    "pageW": 595,
+    "pageH": 841.9,
+    "images": [
+      {
+        "page": 2,
+        "xref": 19,
+        "px": "2100x1125",
+        "placedPt": [
+          61.5,
+          124.5,
+          586.5,
+          405.8
+        ],
+        "placedMm": 185.2,
+        "placedPtW": 525,
+        "effDpi": 288,
+        "widthCoverage": 0.882,
+        "overflow": false
+      },
+      {
+        "page": 2,
+        "xref": 22,
+        "px": "2100x789",
+        "placedPt": [
+          61.5,
+          405.8,
+          586.5,
+          603
+        ],
+        "placedMm": 185.2,
+        "placedPtW": 525,
+        "effDpi": 288,
+        "widthCoverage": 0.882,
+        "overflow": false
+      },
+      {
+        "page": 3,
+        "xref": 32,
+        "px": "2100x1200",
+        "placedPt": [
+          61.5,
+          73.5,
+          586.5,
+          373.5
+        ],
+        "placedMm": 185.2,
+        "placedPtW": 525,
+        "effDpi": 288,
+        "widthCoverage": 0.882,
+        "overflow": false
+      }
+    ],
+    "pageTextExtents": [
+      {
+        "page": 1,
+        "textX0": 48.8,
+        "textX1": 537.8,
+        "blocks": 17
+      },
+      {
+        "page": 2,
+        "textX0": 48.8,
+        "textX1": 273,
+        "blocks": 4
+      },
+      {
+        "page": 3,
+        "textX0": 61.5,
+        "textX1": 531,
+        "blocks": 14
+      },
+      {
+        "page": 4,
+        "textX0": 74.2,
+        "textX1": 430.4,
+        "blocks": 2
+      }
+    ]
+  },
+  "asserts": [
+    {
+      "name": "PDF 里图表位图数量 == 3（控制图主/副 + 直方图）",
+      "pass": true,
+      "detail": "n=3"
+    },
+    {
+      "name": "没有图片超出纸张右边缘",
+      "pass": true,
+      "detail": "false,false,false"
+    },
+    {
+      "name": "图表宽度覆盖可打印区 >= 90%",
+      "pass": true,
+      "detail": "min=0.996 printable=527.0pt"
+    },
+    {
+      "name": "图表有效分辨率 >= 200 DPI",
+      "pass": true,
+      "detail": "min=288"
+    },
+    {
+      "name": "页面宽度=A4",
+      "pass": true,
+      "detail": "595"
+    },
+    {
+      "name": "没有空白页（每页至少 1 个文字块或图片）",
+      "pass": true,
+      "detail": "blank=[] pages=4"
+    }
+  ],
+  "ok": true
+}

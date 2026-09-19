@@ -3,7 +3,7 @@
  *
  * 出处：架构文档 §2.8、§5。
  *
- * 一键日报：构造报表模型 → 导出 Excel（≥4 sheet，**不含图片**）→ 切到报表页
+ * 一键日报：构造报表模型 → 导出 Excel（4 个数据 sheet，报表页会附带「图表」sheet）→ 切到报表页
  * 并触发浏览器原生打印（PDF）。遵守架构硬约束：Excel 永不含图片，打印才含图表。
  */
 
@@ -15,7 +15,7 @@ import { useUiStore } from '@/store/uiStore';
 import { useProjectStore, buildProjectFromDataset } from '@/store/projectStore';
 import {
   buildModel,
-  exportExcelReport,
+  exportExcelReportDetailed,
   printReport,
   DEFAULT_EXPORT_OPTIONS,
 } from '@/services/report';
@@ -50,8 +50,13 @@ export default function TopBar(): ReactElement {
     try {
       const proj = project ?? buildProjectFromDataset('local', projectName, dataset);
       const model = buildModel(proj);
-      const fileName = exportExcelReport(model);
-      pushToast(`已生成一键日报 Excel：${fileName}（4 sheet，不含图片）`, 'success');
+      const { fileName, imageCount } = exportExcelReportDetailed(model);
+      pushToast(
+        imageCount > 0
+          ? `已生成一键日报 Excel：${fileName}（4 个数据 sheet + 图表 sheet，内嵌 ${imageCount} 张图）`
+          : `已生成一键日报 Excel：${fileName}（4 个数据 sheet；图表将在报表页导出时内嵌）`,
+        'success',
+      );
       // 先切到报表导出页，待其渲染完成后再唤起打印 —— 否则打印的是当前所在页，
       // 会得到与日报无关的 PDF。用双 rAF 保证路由切换已提交后再调用 window.print()。
       navigate('/report');

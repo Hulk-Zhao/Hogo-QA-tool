@@ -46,3 +46,13 @@ vite.config.*.timestamp-*.mjs
 # 临时补丁工具（本机 ad-hoc 脚本，非项目产物）
 .workbuddy/tmp/
 
+.probe/downloads/
+.probe/out/
+.probe/p3-png/
+
+# P4 探针的渲染中间产物（逐页 PNG 与解包目录，可用探针一条命令重生成）
+.probe/*-render/
+.probe/*-render-*/
+.probe/p4-ab-*/
+.probe/p4-one-*/
+.probe/p4-xlsx-media/

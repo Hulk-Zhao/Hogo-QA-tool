@@ -7,6 +7,9 @@
 export {
   buildModel,
   exportExcelReport,
+  exportExcelReportDetailed,
+  exportAiReportMarkdown,
+  exportAiReportWord,
   printReport,
   defaultPrint,
   applyPrintClass,
@@ -23,3 +26,27 @@ export {
   type ExportOptions,
   type SaveBlobFn,
 } from './reportService';
+
+export { collectChartImages } from './chartImageCollector';
+
+export {
+  DOCX_MIME,
+  aiReportDocxFileName,
+  buildAiReportDocx,
+  documentBodyXml,
+  parseMarkdownBlocks,
+  parseInlineRuns,
+  escapeXml,
+  type DocBlock,
+  type DocRun,
+} from './docxReport';
+
+export {
+  AI_REPORT_TITLE,
+  aiReportFileName,
+  analysisSignature,
+  buildAiReportMarkdown,
+  cnOrdinal,
+  toAiSheetRows,
+  type AiReportMeta,
+} from './aiReportDoc';

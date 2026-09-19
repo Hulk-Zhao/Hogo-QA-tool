@@ -110,7 +110,18 @@ export interface AiUsageLog {
   id: string;
   projectId: string;
   /** 与 `services/ai/types.AiFeature` 对齐；新增功能必须同步此处。 */
-  feature: 'chartExplain' | 'capExplain' | 'suggest' | 'report' | 'qa' | 'fullDiagnosis';
+  /**
+   * 功能标识。与 services/ai/types 的 `AiFeature` 保持同一份取值集合
+   * （新增 `moduleAnalysis`：报表模块级 AI 分析，供 AI 导出使用）。
+   */
+  feature:
+    | 'chartExplain'
+    | 'capExplain'
+    | 'suggest'
+    | 'report'
+    | 'qa'
+    | 'fullDiagnosis'
+    | 'moduleAnalysis';
   sentPayloadScope: 'summary' | 'raw';
   model: string;
   requestedAt: string;

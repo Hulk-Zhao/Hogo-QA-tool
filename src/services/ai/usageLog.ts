@@ -65,6 +65,7 @@ export const USAGE_FEATURE_LABEL: Record<AiFeature, string> = {
   report: '报告文字',
   qa: '数据问答',
   fullDiagnosis: '全面诊断',
+  moduleAnalysis: '报表模块分析',
 };
 
 /** 载荷范围 → 中文名。 */

@@ -1,0 +1,58 @@
+{
+ "path": "E:/tools/Hogo-QA-tool/.probe/downloads/report-p4.xlsx",
+ "parts": [
+  "[Content_Types].xml",
+  "_rels/.rels",
+  "docProps/app.xml",
+  "docProps/core.xml",
+  "xl/_rels/workbook.xml.rels",
+  "xl/drawings/_rels/drawing1.xml.rels",
+  "xl/drawings/drawing1.xml",
+  "xl/media/image1.png",
+  "xl/media/image2.png",
+  "xl/metadata.xml",
+  "xl/styles.xml",
+  "xl/theme/theme1.xml",
+  "xl/workbook.xml",
+  "xl/worksheets/_rels/sheet5.xml.rels",
+  "xl/worksheets/sheet1.xml",
+  "xl/worksheets/sheet2.xml",
+  "xl/worksheets/sheet3.xml",
+  "xl/worksheets/sheet4.xml",
+  "xl/worksheets/sheet5.xml"
+ ],
+ "media": [
+  {
+   "name": "xl/media/image1.png",
+   "bytes": 67314,
+   "size": [
+    1169,
+    510
+   ],
+   "format": "PNG",
+   "sha256": "87fdbe3e0f5a8ae3"
+  },
+  {
+   "name": "xl/media/image2.png",
+   "bytes": 18701,
+   "size": [
+    1169,
+    320
+   ],
+   "format": "PNG",
+   "sha256": "b10f5bba2a4d6f00"
+  }
+ ],
+ "drawing": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n<xdr:wsDr xmlns:xdr=\"http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"><xdr:oneCellAnchor><xdr:from><xdr:col>1</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>1</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from><xdr:ext cx=\"11134725\" cy=\"4857750\"/><xdr:pic><xdr:nvPicPr><xdr:cNvPr id=\"2\" name=\"Chart 1\" descr=\"控制图\"/><xdr:cNvPicPr><a:picLocks noChangeAspect=\"1\"/></xdr:cNvPicPr></xdr:nvPicPr><xdr:blipFill><a:blip r:embed=\"rId1\"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill><xdr:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"11134725\" cy=\"4857750\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic><xdr:clientData/></xdr:oneCellAnchor><xdr:oneCellAnchor><xdr:from><xdr:col>1</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>29</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from><xdr:ext cx=\"11134725\" cy=\"3048000\"/><xdr:pic><xdr:nvPicPr><xdr:cNvPr id=\"3\" name=\"Chart 2\" descr=\"能力图（直方图 + USL/LSL）\"/><xdr:cNvPicPr><a:picLocks noChangeAspect=\"1\"/></xdr:cNvPicPr></xdr:nvPicPr><xdr:blipFill><a:blip r:embed=\"rId2\"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill><xdr:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"11134725\" cy=\"3048000\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic><xdr:clientData/></xdr:oneCellAnchor></xdr:wsDr>",
+ "sheet5_rels": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing\" Target=\"../drawings/drawing1.xml\"/></Relationships>",
+ "sheetnames": [
+  "CPK汇总",
+  "不良统计",
+  "原始尺寸",
+  "原始不良",
+  "图表"
+ ],
+ "chart_sheet_title": "图表",
+ "openpyxl_images": 2,
+ "cellA1": "控制图"
+}

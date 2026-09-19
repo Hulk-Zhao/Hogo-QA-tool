@@ -29,10 +29,11 @@ vi.mock('@/services/report', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/services/report')>();
   return {
     ...actual,
-    // TopBar 调用 exportExcelReport(model)（默认 save=downloadBlob）；
-    // 这里替换为注入假 save，以便断言真实导出参数。
-    exportExcelReport: (model: Parameters<typeof actual.exportExcelReport>[0]) =>
-      actual.exportExcelReport(model, reportSpy.save),
+    // TopBar 调用 exportExcelReportDetailed(model)（P3 起：导出会内嵌图表，
+    // 需要拿到 imageCount 来提示）；这里替换为注入假 save，以便断言真实导出参数。
+    exportExcelReportDetailed: (
+      model: Parameters<typeof actual.exportExcelReportDetailed>[0],
+    ) => actual.exportExcelReportDetailed(model, reportSpy.save),
   };
 });
 

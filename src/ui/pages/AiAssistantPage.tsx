@@ -63,6 +63,7 @@ import { downloadBlob } from '@/services/report';
 import { buildReportModel } from '@/data/exporter/reportModel';
 import { useProjectStore } from '@/store/projectStore';
 import { useDiagnosisStore } from '@/store/diagnosisStore';
+import { nextEntryId, useAiChatStore, type ChatEntry } from '@/store/aiChatStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useUiStore } from '@/store/uiStore';
 import EmptyState from '@/ui/components/EmptyState';
@@ -88,26 +89,6 @@ const QUICK_ACTIONS: QuickAction[] = [
   { feature: 'qa', label: '数据问答', needsAnalysis: false, placeholder: '例如：当前哪个特性能力最差？' },
 ];
 
-/** 会话消息。 */
-interface ChatEntry {
-  id: string;
-  role: 'user' | 'assistant';
-  text: string;
-  /** 本次请求发送的数据范围。 */
-  scope?: 'summary' | 'raw';
-  /** 发送字段清单。 */
-  sentFields?: string[];
-  ok?: boolean;
-  /** 失败时服务端返回的原文（如 `model is required`），供用户自助定位。 */
-  serverDetail?: string;
-}
-
-/** 生成页面内唯一 id。 */
-let entrySeq = 0;
-function nextEntryId(): string {
-  entrySeq += 1;
-  return `entry-${entrySeq}`;
-}
 
 /**
  * 单特性统计摘要条目。
@@ -178,10 +159,17 @@ function AiAssistantContent(): ReactElement {
   const setFullDiagnosis = useDiagnosisStore((s) => s.setFullDiagnosis);
   const clearFullDiagnosis = useDiagnosisStore((s) => s.clearFullDiagnosis);
 
-  const [entries, setEntries] = useState<ChatEntry[]>([]);
-  const [question, setQuestion] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [allowRaw, setAllowRaw] = useState(false);
+  // 会话相关状态全部放 store（本轮 P3-B）：路由切换会卸载本组件，
+  // 组件内 useState 会随之销毁 —— 这正是「回来记录就消失了」的原因。
+  const entries = useAiChatStore((s) => s.entries);
+  const question = useAiChatStore((s) => s.question);
+  const setQuestion = useAiChatStore((s) => s.setQuestion);
+  const loading = useAiChatStore((s) => s.loading);
+  const setLoading = useAiChatStore((s) => s.setLoading);
+  const allowRaw = useAiChatStore((s) => s.allowRaw);
+  const setAllowRaw = useAiChatStore((s) => s.setAllowRaw);
+  const appendEntry = useAiChatStore((s) => s.appendEntry);
+  const clearChat = useAiChatStore((s) => s.clearChat);
   const [pendingRaw, setPendingRaw] = useState<AiFeature | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [diagnosisCopied, setDiagnosisCopied] = useState(false);
@@ -212,10 +200,11 @@ function AiAssistantContent(): ReactElement {
 
     const payload = buildPayload(feature, summary, useRaw, rawData, note);
 
-    setEntries((prev) => [
-      ...prev,
-      { id: nextEntryId(), role: 'user', text: note || QUICK_ACTIONS.find((q) => q.feature === feature)?.label || feature },
-    ]);
+    appendEntry({
+      id: nextEntryId(),
+      role: 'user',
+      text: note || QUICK_ACTIONS.find((q) => q.feature === feature)?.label || feature,
+    });
     setLoading(true);
 
     const config: AiClientConfig = {
@@ -253,18 +242,15 @@ function AiAssistantContent(): ReactElement {
       : response.reasoning
         ? `${response.errorMessage ?? '请求失败。'}\n\n（以下为模型思考过程，未构成有效正文；可将「最大输出 tokens」调大后重试）\n${response.reasoning}`
         : response.errorMessage ?? '请求失败。';
-    setEntries((prev) => [
-      ...prev,
-      {
-        id: nextEntryId(),
-        role: 'assistant',
-        text: assistantText,
-        scope: entry.sentPayloadScope,
-        sentFields: payload.sentFields,
-        ok: response.ok,
-        ...(response.serverDetail ? { serverDetail: response.serverDetail } : {}),
-      },
-    ]);
+    appendEntry({
+      id: nextEntryId(),
+      role: 'assistant',
+      text: assistantText,
+      scope: entry.sentPayloadScope,
+      sentFields: payload.sentFields,
+      ok: response.ok,
+      ...(response.serverDetail ? { serverDetail: response.serverDetail } : {}),
+    });
     setLoading(false);
   };
 
@@ -331,15 +317,9 @@ function AiAssistantContent(): ReactElement {
     try {
       const model = buildReportModel(project);
       const md = buildMarkdownReport(model);
-      setEntries((prev) => [
-        ...prev,
-        { id: nextEntryId(), role: 'assistant', text: md, ok: true },
-      ]);
+      appendEntry({ id: nextEntryId(), role: 'assistant', text: md, ok: true });
     } catch {
-      setEntries((prev) => [
-        ...prev,
-        { id: nextEntryId(), role: 'assistant', text: '项目不含数据集，无法生成报告。', ok: false },
-      ]);
+      appendEntry({ id: nextEntryId(), role: 'assistant', text: '项目不含数据集，无法生成报告。', ok: false });
     }
   };
 
@@ -502,14 +482,23 @@ function AiAssistantContent(): ReactElement {
         </CardContent>
       </Card>
 
-      {/* 对话记录 */}
+      {/* 对话记录（状态在 aiChatStore：切页不丢；因此需要一个显式的清空入口） */}
       {entries.length === 0 ? (
         <EmptyState
           title="尚未发起 AI 请求"
-          description="点击上方快捷指令，或输入问题开始。每次请求前会展示将发送的字段清单。"
+          description="点击上方快捷指令，或输入问题开始。每次请求前会展示将发送的字段清单。对话记录在切换页面后仍会保留（刷新页面则清空）。"
         />
       ) : (
-        <Stack spacing={1.5} data-testid="ai-conversation">
+        <>
+          <Stack direction="row" alignItems="center" spacing={1}>
+            <Typography variant="subtitle2">对话记录</Typography>
+            <Chip size="small" label={'共 ' + String(entries.length) + ' 条'} data-testid="ai-conversation-count" />
+            <Box sx={{ flexGrow: 1 }} />
+            <Button size="small" color="inherit" onClick={clearChat} data-testid="ai-clear-chat">
+              清空对话
+            </Button>
+          </Stack>
+          <Stack spacing={1.5} data-testid="ai-conversation">
           {entries.map((entry) => (
             <Card
               key={entry.id}
@@ -569,7 +558,8 @@ function AiAssistantContent(): ReactElement {
               </CardContent>
             </Card>
           ))}
-        </Stack>
+          </Stack>
+        </>
       )}
 
       {loading ? (

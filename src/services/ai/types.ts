@@ -15,7 +15,20 @@
  *   3. `usageLog.USAGE_FEATURE_LABEL`（设置页用量表）；
  *   4. `data/schema.AiUsageLog.feature`（持久化实体）。
  */
-export type AiFeature = 'chartExplain' | 'capExplain' | 'suggest' | 'report' | 'qa' | 'fullDiagnosis';
+export type AiFeature =
+  | 'chartExplain'
+  | 'capExplain'
+  | 'suggest'
+  | 'report'
+  | 'qa'
+  | 'fullDiagnosis'
+  /**
+   * 报表模块级 AI 分析（AI 导出用）。
+   *
+   * 与 fullDiagnosis（一次性全面诊断）不同：本功能按**报表模块**逐块调用，
+   * 每块只发送该模块自己的统计摘要，并受用户勾选的「分析方向」约束。
+   */
+  | 'moduleAnalysis';
 
 /**
  * 默认最大输出 tokens（唯一真源，settingsStore/store 与 aiClient 共同引用）。

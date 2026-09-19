@@ -48,6 +48,36 @@ export {
 } from './usageLog';
 
 export {
+  ANALYSIS_FOCUSES,
+  DEFAULT_FOCUS_IDS,
+  findFocus,
+  focusInstructionText,
+  focusLabels,
+  normalizeFocusIds,
+  type AnalysisFocus,
+  type AnalysisFocusId,
+} from './analysisFocus';
+
+export {
+  analyzableModules,
+  buildReportModules,
+  controlLimits,
+  type ReportModule,
+  type ReportModuleExtras,
+  type ReportModuleId,
+} from './reportModules';
+
+export {
+  buildModuleMessages,
+  describeFocuses,
+  runReportAnalysis,
+  shouldAbortAnalysis,
+  type ModuleAnalysis,
+  type RunReportAnalysisRequest,
+  type RunReportAnalysisResult,
+} from './reportAnalysis';
+
+export {
   buildFullDiagnosisRecord,
   buildDiagnosisMarkdown,
   diagnosisFileName,

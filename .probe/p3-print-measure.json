@@ -1,0 +1,69 @@
+{
+  "steps": [
+    "OK: 应用加载",
+    "OK: 导入页",
+    "OK: 粘贴框",
+    "OK: 解析完成",
+    "OK: 能力页",
+    "OK: 报表页"
+  ],
+  "checks": {
+    "screen": {
+      "screenWidth": 1400,
+      "charts": [
+        {
+          "cls": "print-chart",
+          "w": 1091,
+          "h": 510,
+          "canvasW": 1091,
+          "canvasH": 300,
+          "canvasCssW": "1091px",
+          "svgW": null
+        },
+        {
+          "cls": "print-chart",
+          "w": 1091,
+          "h": 320,
+          "canvasW": 1091,
+          "canvasH": 320,
+          "canvasCssW": "1091px",
+          "svgW": null
+        }
+      ],
+      "cardCount": 4,
+      "pageW": 1125,
+      "chartsSectionW": 1125,
+      "dpr": 1
+    },
+    "printMedia": {
+      "screenWidth": 1400,
+      "charts": [
+        {
+          "cls": "print-chart",
+          "w": 1311,
+          "h": 510,
+          "canvasW": 1311,
+          "canvasH": 300,
+          "canvasCssW": "1311px",
+          "svgW": null
+        },
+        {
+          "cls": "print-chart",
+          "w": 1311,
+          "h": 320,
+          "canvasW": 1311,
+          "canvasH": 320,
+          "canvasCssW": "1311px",
+          "svgW": null
+        }
+      ],
+      "cardCount": 4,
+      "pageW": 1345,
+      "chartsSectionW": 1345,
+      "dpr": 1
+    },
+    "pdfBytes": 211335,
+    "pdfBase64Len": 281780
+  },
+  "ok": true
+}

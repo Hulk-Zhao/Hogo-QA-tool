@@ -13,11 +13,13 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   ANALYSIS_TIMEOUT_MS,
+  MAX_RAW_BODY_SNIPPET_CHARS,
   MAX_SERVER_DETAIL_CHARS,
   PROBE_TIMEOUT_MS,
   chatCompletionsUrl,
   chatCompletion,
   extractServerDetail,
+  extractSseContent,
   modelsUrl,
   normalizeBaseUrl,
   probeAi,
@@ -32,6 +34,21 @@ function jsonResponse(body: unknown, status = 200): FetchLikeResponse {
     status,
     json: async () => body,
     text: async () => JSON.stringify(body),
+  };
+}
+
+/**
+ * 构造「只有原始文本」的响应：`json()` 与真实 SSE 一样必然失败。
+ *
+ * 真实 fetch 里 SSE 响应调 `json()` 会抛错，用这个假响应能把「读文本再判格式」的
+ * 新链路如实跑一遍。
+ */
+function textResponse(raw: string, status = 200): FetchLikeResponse {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    json: async () => JSON.parse(raw),
+    text: async () => raw,
   };
 }
 
@@ -131,6 +148,112 @@ describe('chatCompletion', () => {
     const resp = await chatCompletion(CONFIG, [{ role: 'user', content: 'hi' }], {}, fetchImpl);
     expect(resp.ok).toBe(false);
     expect(resp.errorCode).toBe('content');
+  });
+  it('★ 200 但返回 SSE（text/event-stream）→ 自动拼接 delta.content，不再误报「无法解析」', async () => {
+    const sse = [
+      'data: {"model":"deepseek-chat","choices":[{"delta":{"content":"过程"}}]}',
+      '',
+      'data: {"choices":[{"delta":{"content":"受控。"}}]}',
+      '',
+      'data: [DONE]',
+      '',
+    ].join('\n');
+    const fetchImpl: FetchLike = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => {
+        throw new Error('Unexpected token d in JSON');
+      },
+      text: async () => sse,
+    }));
+    const resp = await chatCompletion(CONFIG, [{ role: 'user', content: 'hi' }], {}, fetchImpl);
+
+    expect(resp.ok).toBe(true);
+    expect(resp.content).toBe('过程受控。');
+    expect(resp.model).toBe('deepseek-chat');
+  });
+
+  it('SSE 兜底兼容伪流式（choices[0].message.content）与 keep-alive 垃圾行', async () => {
+    const sse = [
+      ': keep-alive',
+      'data: {"choices":[{"message":{"content":"完整"}, "finish_reason":"stop"}]}',
+      'data: not-json',
+      '',
+      'data: [DONE]',
+    ].join('\n');
+    const fetchImpl: FetchLike = vi.fn(async () => textResponse(sse));
+    const resp = await chatCompletion(CONFIG, [{ role: 'user', content: 'hi' }], {}, fetchImpl);
+
+    expect(resp.ok).toBe(true);
+    expect(resp.content).toBe('完整');
+    expect(resp.finishReason).toBe('stop');
+  });
+
+  it('★ 200 但既非 JSON 也非 SSE → 错误信息带服务端原文片段（可自助排查）', async () => {
+    const raw = '<html>\n  <body>  502 Bad Gateway upstream refused  </body>\n</html>';
+    const fetchImpl: FetchLike = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => {
+        throw new Error('not json');
+      },
+      text: async () => raw,
+    }));
+    const resp = await chatCompletion(CONFIG, [{ role: 'user', content: 'hi' }], {}, fetchImpl);
+
+    expect(resp.ok).toBe(false);
+    expect(resp.errorCode).toBe('content');
+    expect(resp.errorMessage).toContain('无法解析');
+    expect(resp.errorMessage).toContain('502 Bad Gateway');
+    expect(resp.serverDetail).toContain('502 Bad Gateway');
+    expect(resp.serverDetail).not.toContain('\n');
+  });
+
+  it('原文过长的非 JSON 响应 → 片段截断到 MAX_RAW_BODY_SNIPPET_CHARS，不把整页塞进 UI', async () => {
+    const raw = 'x'.repeat(5000);
+    const fetchImpl: FetchLike = vi.fn(async () => textResponse(raw));
+    const resp = await chatCompletion(CONFIG, [{ role: 'user', content: 'hi' }], {}, fetchImpl);
+
+    expect(resp.ok).toBe(false);
+    expect((resp.serverDetail ?? '').length).toBeLessThanOrEqual(MAX_RAW_BODY_SNIPPET_CHARS + 1);
+  });
+
+  it('200 且是合法 JSON 但缺少 choices → 文案点明「不是 OpenAI 兼容响应」（非泛化空内容）', async () => {
+    const raw = '{"detail":"upstream error"}';
+    const fetchImpl: FetchLike = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => JSON.parse(raw),
+      text: async () => raw,
+    }));
+    const resp = await chatCompletion(CONFIG, [{ role: 'user', content: 'hi' }], {}, fetchImpl);
+
+    expect(resp.ok).toBe(false);
+    expect(resp.errorCode).toBe('content');
+    expect(resp.errorMessage).toContain('choices');
+    expect(resp.errorMessage).toContain('upstream error');
+  });
+
+  it('200 但响应体为空 → 「返回内容为空」，且不带 serverDetail', async () => {
+    const fetchImpl: FetchLike = vi.fn(async () => textResponse(''));
+    const resp = await chatCompletion(CONFIG, [{ role: 'user', content: 'hi' }], {}, fetchImpl);
+
+    expect(resp.ok).toBe(false);
+    expect(resp.errorMessage).toContain('为空');
+    expect(resp.serverDetail).toBeUndefined();
+  });
+
+  it('extractSseContent：只有 [DONE] / 空 delta 时不产出正文（空壳不会伪装成结论）', async () => {
+    expect(extractSseContent('data: [DONE]\n').content).toBe('');
+    expect(extractSseContent('data: {"choices":[{"delta":{}}]}\n').content).toBe('');
+
+    const fetchImpl: FetchLike = vi.fn(async () =>
+      textResponse('data: {"choices":[{"delta":{}}]}\n'),
+    );
+    const resp = await chatCompletion(CONFIG, [{ role: 'user', content: 'hi' }], {}, fetchImpl);
+    expect(resp.ok).toBe(false);
+    expect(resp.errorCode).toBe('content');
+    expect(resp.errorMessage).toContain('为空');
   });
 
   it('超时常量：分析 30s / 探测 3s', () => {

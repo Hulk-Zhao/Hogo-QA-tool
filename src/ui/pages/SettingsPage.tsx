@@ -240,7 +240,7 @@ export default function SettingsPage(): ReactElement {
                 min: MIN_MAX_TOKENS,
                 step: 1,
               }}
-              helperText="推理模型思考也占配额，可按需调大（不设上限）；留空或非法值回落 4096。"
+              helperText="推理模型思考也占配额，可按需调大；留空或非法值回落 4096。本工具不设上限，但服务端可能有自己的区间（如 DeepSeek 报 [1, 393216]），超出时会自动收敛到服务端允许的上限后重试。"
             />
 
             <FormControlLabel

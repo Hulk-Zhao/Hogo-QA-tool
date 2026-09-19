@@ -152,6 +152,51 @@ function isClientErrorStatus(status: number): boolean {
   return status >= 400 && status < 500;
 }
 
+/** 服务端在 400 响应里声明的 `max_tokens` 合法区间。 */
+export interface MaxTokensRange {
+  min: number;
+  max: number;
+}
+
+/**
+ * 从服务端错误原文里解析 `max_tokens` 的合法区间。
+ *
+ * 为什么必须解析而不是写死：各家上限差别极大 —— 本机 Ollama 基本不限，
+ * DeepSeek 实测返回「the valid range of max_tokens is [1, 393216]」，
+ * 而本项目的「最大输出 tokens」按需求**刻意不设上限**（用户明确要求不限制）。
+ * 两者相遇时，唯一既通用又不武断的做法就是**读服务端自己声明的区间**。
+ *
+ * @param detail 服务端错误原文
+ * @returns 合法区间；无法解析时 null
+ */
+export function parseMaxTokensRange(detail: string): MaxTokensRange | null {
+  if (!/max_tokens/i.test(detail)) {
+    return null;
+  }
+  const m = /\[\s*(\d+)\s*,\s*(\d+)\s*\]/.exec(detail);
+  if (!m) {
+    return null;
+  }
+  const min = Number(m[1]);
+  const max = Number(m[2]);
+  if (!Number.isFinite(min) || !Number.isFinite(max) || min < 1 || max < min) {
+    return null;
+  }
+  return { min, max };
+}
+
+/**
+ * 把 `max_tokens` 收敛到服务端允许的区间内。
+ *
+ * @param value 用户配置的上限
+ * @param range 服务端声明的合法区间
+ * @returns 收敛后的值
+ */
+export function clampMaxTokens(value: number, range: MaxTokensRange): number {
+  const rounded = Math.round(value);
+  return Math.min(Math.max(rounded, range.min), range.max);
+}
+
 /**
  * 判定某 HTTP 状态是否值得「去掉 `reasoning_effort` 重试一次」。
  *
@@ -328,6 +373,117 @@ function emptyContentMessage(finishReason: string, reasoning: string, maxTokens:
   return 'AI 返回内容为空。';
 }
 
+/** 响应体原文进入错误信息前的最大长度（避免把整页 HTML 塞进 UI）。 */
+export const MAX_RAW_BODY_SNIPPET_CHARS = 200;
+
+/** 折叠空白并截断原始响应体，供错误信息 / serverDetail 展示。 */
+function collapseRawBody(raw: string, max = MAX_RAW_BODY_SNIPPET_CHARS): string {
+  const collapsed = (raw ?? '').replace(/\s+/g, ' ').trim();
+  return collapsed.length > max ? collapsed.slice(0, max) + '…' : collapsed;
+}
+
+/**
+ * 从 SSE（`text/event-stream`）响应体里累计正文。
+ *
+ * 兼容 `choices[0].delta.content`（真流式）与 `choices[0].message.content`（伪流式），
+ * 忽略 `[DONE]` 与无法解析的 keep-alive 行。
+ *
+ * @param raw 完整响应体
+ * @returns { content, model, finishReason }
+ */
+export function extractSseContent(raw: string): { content: string; model: string; finishReason: string } {
+  let content = '';
+  let model = '';
+  let finishReason = '';
+  for (const line of raw.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith('data:')) {
+      continue;
+    }
+    const payload = trimmed.slice('data:'.length).trim();
+    if (payload.length === 0 || payload === '[DONE]') {
+      continue;
+    }
+    let chunk: unknown;
+    try {
+      chunk = JSON.parse(payload);
+    } catch {
+      continue;
+    }
+    const obj = (chunk ?? {}) as {
+      model?: string;
+      choices?: {
+        finish_reason?: string;
+        delta?: { content?: unknown };
+        message?: { content?: unknown };
+      }[];
+    };
+    const choice = obj.choices?.[0];
+    const part = choice?.delta?.content ?? choice?.message?.content;
+    if (typeof part === 'string') {
+      content += part;
+    }
+    if (typeof obj.model === 'string' && obj.model.length > 0) {
+      model = obj.model;
+    }
+    if (typeof choice?.finish_reason === 'string' && choice.finish_reason.length > 0) {
+      finishReason = choice.finish_reason;
+    }
+  }
+  return { content, model, finishReason };
+}
+
+/**
+ * 解析 200 响应体：优先 JSON，失败时按 SSE 兜底。
+ *
+ * 实测部分服务端（或反向代理）即使收到 `stream:false` 仍返回 `text/event-stream`，
+ * 此时 `response.json()` 必然失败 —— 旧实现会把它笼统报成「AI 返回内容无法解析」，
+ * 用户无从自助排查。此处先读原文再判格式，彻底失败时把原文片段带进错误信息与 serverDetail。
+ *
+ * @param raw 完整响应体
+ * @returns 成功时透出归一化 body；失败时给出可读信息与原文片段
+ */
+export function parseCompletionBody(
+  raw: string,
+): { ok: true; body: unknown } | { ok: false; message: string; detail: string } {
+  const text = (raw ?? '').trim();
+  if (text.length === 0) {
+    return { ok: false, message: 'AI 返回内容为空。', detail: '' };
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    const sse = extractSseContent(text);
+    // SSE 形态（含 `data:` 行）即使本轮没有正文，也交给上层报「内容为空」，
+    // 而不是笼统的「无法解析」——后者会误导用户去查网络/格式。
+    if (sse.content.length > 0 || /^\s*data:/m.test(text)) {
+      return {
+        ok: true,
+        body: {
+          model: sse.model,
+          choices: [{ finish_reason: sse.finishReason, message: { content: sse.content } }],
+        },
+      };
+    }
+    const snippet = collapseRawBody(text);
+    return {
+      ok: false,
+      message: `AI 返回内容无法解析：既不是 OpenAI 兼容 JSON，也不是 SSE 流。服务端原文：${snippet}`,
+      detail: snippet,
+    };
+  }
+  const choices = (parsed as { choices?: unknown } | null)?.choices;
+  if (!Array.isArray(choices)) {
+    const snippet = collapseRawBody(text);
+    return {
+      ok: false,
+      message: `AI 返回内容缺少 choices 字段（不是 OpenAI 兼容响应）。服务端原文：${snippet}`,
+      detail: snippet,
+    };
+  }
+  return { ok: true, body: parsed };
+}
 /**
  * 发起一次 chat completion 请求（架构 §8.1）。
  *
@@ -382,8 +538,12 @@ export async function chatCompletion(
   }
 
   const timeoutMs = options.timeoutMs ?? ANALYSIS_TIMEOUT_MS;
-  const maxTokens = options.maxTokens ?? DEFAULT_MAX_TOKENS;
+  let maxTokens = options.maxTokens ?? DEFAULT_MAX_TOKENS;
   const hasReasoningEffort = options.reasoningEffort !== undefined;
+  /** 是否已因服务端不识别而摘掉 `reasoning_effort`（只摘一次）。 */
+  let dropReasoningEffort = false;
+  /** 自动收敛 `max_tokens` 的说明：拼进错误信息，让用户知道到底发生了什么。 */
+  let clampNote = '';
   const buildBody = (includeReasoningEffort: boolean): string =>
     JSON.stringify({
       model: config.model,
@@ -399,61 +559,101 @@ export async function chatCompletion(
   try {
     const url = chatCompletionsUrl(config.baseUrl);
     const headers = buildHeaders(config.apiKey);
-    let response = await doFetch(url, {
-      method: 'POST',
-      headers,
-      body: buildBody(hasReasoningEffort),
-      signal,
-    });
-
-    // 兼容性兜底：部分服务端不认识 `reasoning_effort`，会以 4xx 拒绝整个请求。
-    // 此时去掉该字段重试**一次**（复用同一超时/取消信号），保证非推理后端不被卡死。
-    // 重试条件已收窄：鉴权失败（401/403）与限流（429）不重试（重发无意义且有害）。
-    if (hasReasoningEffort && shouldRetryWithoutReasoningEffort(response.status)) {
+    /** 最多 3 次请求：首次 + 收敛 max_tokens + 摘掉 reasoning_effort。 */
+    const MAX_ATTEMPTS = 3;
+    let response!: FetchLikeResponse;
+    let serverDetail = '';
+    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
       response = await doFetch(url, {
         method: 'POST',
         headers,
-        body: buildBody(false),
+        body: buildBody(hasReasoningEffort && !dropReasoningEffort),
         signal,
       });
-    }
-
-    if (!response.ok) {
-      const code = errorCodeFromStatus(response.status);
+      if (response.ok) {
+        break;
+      }
       let detail = '';
       try {
         detail = await response.text();
       } catch {
         detail = '';
       }
+      serverDetail = extractServerDetail(detail);
+
+      // 自愈 1（优先）：服务端在 400 里直接给出了 `max_tokens` 的合法区间。
+      // 各家上限差别极大（本机 Ollama 基本不限、DeepSeek 实测 [1, 393216]），
+      // 而「最大输出 tokens」按需求刻意**不设上限** —— 用户填的大值必然被拒。
+      // 与其让用户自己猜该填多少，不如按服务端给的区间收敛后重试；仍失败才报错。
+      const range = parseMaxTokensRange(detail);
+      if (range) {
+        const clamped = clampMaxTokens(maxTokens, range);
+        if (clamped !== maxTokens) {
+          clampNote =
+            `已将「最大输出 tokens」由 ${maxTokens} 自动收敛为 ${clamped}` +
+            `（服务端要求 ${range.min}~${range.max}）后重试。`;
+          maxTokens = clamped;
+          continue;
+        }
+      }
+
+      // 自愈 2：部分服务端不认识 `reasoning_effort`，会以 4xx 拒绝整个请求。
+      // 去掉该字段重试（复用同一超时/取消信号），保证非推理后端不被卡死。
+      // 重试条件已收窄：鉴权失败（401/403）与限流（429）不重试（重发无意义且有害）。
+      if (
+        hasReasoningEffort &&
+        !dropReasoningEffort &&
+        shouldRetryWithoutReasoningEffort(response.status)
+      ) {
+        dropReasoningEffort = true;
+        continue;
+      }
+      break;
+    }
+
+    if (!response.ok) {
+      const code = errorCodeFromStatus(response.status);
       // 服务端原文是**唯一**能指明真实原因的信息（「model is required」等）：
       // 归一化后的 errorCode 只会把任意 4xx 压成 content，不足以自助排查。
       // 故此处既拼进 errorMessage（一行可读文案），又保留原文供 UI 单独展示。
-      const serverDetail = extractServerDetail(detail);
+      const baseMessage = httpErrorMessage(code, response.status, serverDetail);
       return {
         ok: false,
         content: '',
         errorCode: code,
-        errorMessage: httpErrorMessage(code, response.status, serverDetail),
+        errorMessage: clampNote.length > 0 ? `${clampNote}${baseMessage}` : baseMessage,
         model,
         httpStatus: response.status,
         ...(serverDetail.length > 0 ? { serverDetail } : {}),
       };
     }
 
-    let body: unknown;
+    let rawText: string;
     try {
-      body = await response.json();
+      rawText = await response.text();
     } catch {
       return {
         ok: false,
         content: '',
         errorCode: 'content',
-        errorMessage: 'AI 返回内容无法解析。',
+        errorMessage: 'AI 返回内容读取失败（响应流中断）。',
         model,
         httpStatus: response.status,
       };
     }
+    const parsedBody = parseCompletionBody(rawText);
+    if (!parsedBody.ok) {
+      return {
+        ok: false,
+        content: '',
+        errorCode: 'content',
+        errorMessage: parsedBody.message,
+        model,
+        httpStatus: response.status,
+        ...(parsedBody.detail.length > 0 ? { serverDetail: parsedBody.detail } : {}),
+      };
+    }
+    const body = parsedBody.body;
     const { content, model: respModel, finishReason, reasoning } = extractContent(body);
     if (!content) {
       return {
@@ -622,4 +822,5 @@ export const __internal = {
   errorCodeFromException,
   extractServerDetail,
   httpErrorMessage,
+  collapseRawBody,
 };

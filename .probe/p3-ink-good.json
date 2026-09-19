@@ -1,0 +1,40 @@
+{
+ "path": ".probe\\p3-print.pdf",
+ "pages": 4,
+ "images": [
+  {
+   "page": 2,
+   "xref": 19,
+   "px": [
+    2100,
+    1125
+   ],
+   "placedMm": 185.2,
+   "effDpi": 288.0,
+   "inkRatio": 0.9991
+  },
+  {
+   "page": 2,
+   "xref": 22,
+   "px": [
+    2100,
+    789
+   ],
+   "placedMm": 185.2,
+   "effDpi": 288.0,
+   "inkRatio": 0.9993
+  },
+  {
+   "page": 3,
+   "xref": 32,
+   "px": [
+    2100,
+    1200
+   ],
+   "placedMm": 185.2,
+   "effDpi": 288.0,
+   "inkRatio": 1.0
+  }
+ ],
+ "blankPages": []
+}

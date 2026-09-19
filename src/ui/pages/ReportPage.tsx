@@ -53,11 +53,12 @@ import ControlChart from '@/ui/charts/ControlChart';
 import ParetoChart from '@/ui/charts/ParetoChart';
 import HistogramChart from '@/ui/charts/HistogramChart';
 import { computeControlChartState } from '@/ui/hooks/useControlChart';
+import AiExportPanel from '@/ui/components/AiExportPanel';
 import {
   CHART_OPTION_KEYS,
   TABLE_OPTION_KEYS,
   buildModel,
-  exportExcelReport,
+  exportExcelReportDetailed,
   hasAnyExportOption,
   printReport,
   type ExportOptions,
@@ -208,6 +209,39 @@ export default function ReportPage(): ReactElement {
     );
   }, [dataset]);
 
+  /**
+   * AI 分析用的控制图补充信息（P4-B）。
+   *
+   * 控制限本来可以由均值 ± 3σ 推导，但**判异结论**必须用页面真实算出来的那份，
+   * 否则会出现「报表上标了红点、AI 却说过程受控」这种自相矛盾的输出。
+   */
+  const aiExtras = useMemo(() => {
+    const limits = controlState?.series?.limits?.primary ?? [];
+    const valueOf = (label: string): number | null => {
+      const line = limits.find((l) => l.label === label);
+      const v = line?.values?.[0];
+      return typeof v === 'number' && Number.isFinite(v) ? v : null;
+    };
+    const cl = valueOf('CL');
+    const ucl = valueOf('UCL');
+    const lcl = valueOf('LCL');
+    if (cl === null || ucl === null || lcl === null) {
+      return undefined;
+    }
+    return {
+      controlChart: {
+        characteristicName: controlState?.characteristicName ?? '当前特性',
+        centerLine: cl,
+        ucl,
+        lcl,
+        violations: (controlState?.evaluation?.violations ?? []).map((v) => ({
+          rule: v.message,
+          pointIndex: v.windowStart,
+        })),
+      },
+    };
+  }, [controlState]);
+
   /** 勾选/取消勾选单个导出项（写入 store，立即落盘）。 */
   const setOption = (key: keyof ExportOptions, value: boolean): void => {
     setExportOptions({ ...exportOptions, [key]: value });
@@ -215,7 +249,7 @@ export default function ReportPage(): ReactElement {
 
   const anySelected = hasAnyExportOption(exportOptions);
 
-  /** 导出 Excel（固定 4 sheet，纯数据）。 */
+  /** 导出 Excel（4 个数据 sheet + 可选的「图表」sheet 内嵌当前图表图片）。 */
   const handleExportExcel = (): void => {
     if (!model) {
       pushToast('无可用数据，无法导出报表', 'warning');
@@ -226,8 +260,13 @@ export default function ReportPage(): ReactElement {
       return;
     }
     try {
-      const fileName = exportExcelReport(model);
-      pushToast(`已导出 Excel：${fileName}（4 个数据 sheet，不含图片）`, 'success');
+      const { fileName, imageCount } = exportExcelReportDetailed(model);
+      pushToast(
+        imageCount > 0
+          ? `已导出 Excel：${fileName}（4 个数据 sheet + 图表 sheet，内嵌 ${imageCount} 张图）`
+          : `已导出 Excel：${fileName}（4 个数据 sheet，本页无图表可内嵌）`,
+        'success',
+      );
     } catch (e) {
       pushToast(`导出失败：${e instanceof Error ? e.message : String(e)}`, 'error');
     }
@@ -340,7 +379,7 @@ export default function ReportPage(): ReactElement {
               <Divider sx={{ my: 1 }} />
 
               <Typography variant="caption" color="text.secondary">
-                图表（仅作用于打印/PDF；Excel 永不含图片）
+                图表（作用于打印/PDF；导出 Excel 时同样会内嵌到「图表」sheet）
               </Typography>
               <Box
                 sx={{
@@ -368,7 +407,7 @@ export default function ReportPage(): ReactElement {
 
             <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap>
               <Button variant="contained" onClick={handleExportExcel} data-testid="export-excel">
-                导出 Excel（4 个数据 sheet）
+                导出 Excel（数据 + 图表）
               </Button>
               <Button
                 variant="outlined"
@@ -387,9 +426,9 @@ export default function ReportPage(): ReactElement {
             ) : null}
 
             <Alert severity="info" icon={false}>
-              Excel 导出的 4 个 sheet：CPK汇总 / 不良统计 / 原始尺寸 / 原始不良，均为纯数据，
-              <strong>不含图片</strong>。PDF 通过浏览器原生打印生成（不引入 jsPDF，避免中文字体撑大体积），
-              输出内容 = 上方勾选项。
+              Excel 导出含 4 个数据 sheet：CPK汇总 / 不良统计 / 原始尺寸 / 原始不良；若本页已渲染图表，
+              会再追加一个「图表」sheet，把当前图表<strong>按原图内嵌</strong>（页面上没有图表时自动退化为纯数据）。
+              PDF 通过浏览器原生打印生成（不引入 jsPDF，避免中文字体撑大体积），输出内容 = 上方勾选项。
             </Alert>
           </Stack>
         </CardContent>
@@ -460,9 +499,14 @@ export default function ReportPage(): ReactElement {
         </Card>
       ) : null}
 
-      {/* 图表区：真实尺寸渲染，打印时按 .print-chart 分页 */}
+      {/* AI 分析导出（P4-B）：逐模块 LLM 分析 + Markdown / Excel 出口 */}
+      <AiExportPanel model={model} {...(aiExtras ? { extras: aiExtras } : {})} />
+
+      {/* 图表区：真实尺寸渲染，打印时按 .print-chart 分页。
+          刻意**不加**打印强制分页（print-page-break）：实测 break-before: page 会让
+          Chrome 在第一次打印时多吐一张空白页（见 src/print.css 末尾的 A/B 记录）。 */}
       {hasCharts(exportOptions) ? (
-        <Stack spacing={2} data-testid="report-charts" className="print-page-break">
+        <Stack spacing={2} data-testid="report-charts">
           <Typography variant="h6" fontWeight={600}>
             图表
           </Typography>

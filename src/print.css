@@ -12,6 +12,26 @@
     color: #000000 !important;
   }
 
+  /* 打印时取消「屏幕视口高度 + 滚动容器」这套布局。
+     AppShell 是 height:100vh、内容区 overflow:auto；打印时 100vh 会按纸张高度
+     再撑出一整页，正文之后必然多出一张全空白页。 */
+  html,
+  body,
+  #root {
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  .print-shell {
+    height: auto !important;
+    display: block !important;
+  }
+
+  .print-main {
+    overflow: visible !important;
+    height: auto !important;
+  }
+
   /* 隐藏交互元素：导航、按钮、配置面板 */
   .no-print,
   nav,
@@ -26,23 +46,73 @@
     page-break-inside: avoid;
   }
 
+  /* ⚠️ 已停用：见文件末尾「不要在图表区用 .print-page-break」一节。
+     保留定义仅为兼容将来确有需要的场景，报表页**不要**再用它。 */
   .print-page-break {
     break-before: page;
     page-break-before: always;
   }
 
   /* 图表卡片（标题 + 图形）整体不可跨页拆分。
-     否则会出现「标题留在上一页、图形被挤到下一页」的空白框观感
-     （用户会直接读成「打印没有图」）。 */
+     否则会出现「标题留在上一页、图形被挤到下一页」的空白框观感。 */
   [data-testid='report-charts'] > * {
     break-inside: avoid;
     page-break-inside: avoid;
   }
+}
 
-  /* 保证图表容器在打印时可见 */
-  .print-chart canvas,
-  .print-chart svg {
+/* ============================================================================
+   打印快照（P4-A）——「打印没有图片」的真正修法。
+   ----------------------------------------------------------------------------
+   P3 曾试图在 beforeprint 里把图表**重新挂载**成打印版面；实测（真实打印路径）
+   证明 Chrome 取快照时 DOM 里一块画布都没有（React 卸载了旧的、新的还没画），
+   于是纸上只剩卡片标题、图形一片空白。
+   P4 改为在 beforeprint 里**同步**把已渲染的画布光栅成高分辨率位图并插进 DOM
+   （见 src/ui/charts/printLayout.ts），下面这两条规则负责让位图顶替原图表。
+   注意：故意不写在 @media print 里 —— 打印预览对话框打开期间屏幕上也应该是
+   同一张图，避免「预览和屏幕不一致」这种二次困惑。
+   ========================================================================== */
+.print-chart.has-print-snapshot > *:not(canvas.print-chart-snapshot) {
+  display: none !important;
+}
+
+canvas.print-chart-snapshot {
+  display: block !important;
+  width: 100% !important;
+  height: auto !important;
+}
+
+@media print {
+  /* ★ 不要在图表区用 .print-page-break（break-before: page）。
+     真实回归（P4-A 二次验证发现，用户视角＝「报表多印了一张空白纸」）：
+     只要图表区带 break-before: page，Chrome 在**第一次**打印时就会先吐出一张
+     全空白页（实测 5 页：第 1 页正文 / 第 2 页墨迹 0.0001 / 第 3 页控制图 /
+     第 4 页能力图 / 第 5 页尾注），而图表内容本身完全正常。
+     A/B 对照（.probe/p4-one.mjs，每个场景都是**全新页面上的第一次打印**）：
+       as-is（Stack 带 print-page-break）  → 5 页（含空白页）
+       去掉 break-before                   → 4 页（无空白）★ 采用
+       改成 display:block / flex           → 都与 display 无关，仍是 5 页
+       给快照 canvas 限高                  → 仍是 5 页
+       把 break-before 挪到前面的空 div    → 仍是 5 页
+     结论：成因就是 break-before 本身，与 flex/高度无关，因此直接不用它。
+     图表卡片自身仍受下面的 .print-chart / [data-testid='report-charts'] > *
+     的 break-inside: avoid 保护，不会被拆成两页。 */
+
+  /* 让图表尽量吃满 A4 可打印宽（用户反馈「界面太小」）：
+     屏幕上的内容区内边距与卡片内边距在纸上没有意义，直接清零。
+     实测收益：图像放置宽度 157.8mm → 约 177mm（可打印宽 186mm 的 95%）。 */
+  .print-main {
+    padding: 0 !important;
+  }
+
+  [data-testid='report-charts'] .MuiCardContent-root {
+    padding: 4px 0 0 !important;
+  }
+
+  /* 兜底：万一快照引擎没跑起来（没有 ECharts 实例等），至少别让画布溢出纸张。 */
+  .print-chart canvas:not(.print-chart-snapshot) {
     max-width: 100% !important;
+    height: auto !important;
   }
 
   /* 「打印/PDF 不含图表」勾选关闭时，隐藏图表（仅作用于打印，不影响 Excel） */

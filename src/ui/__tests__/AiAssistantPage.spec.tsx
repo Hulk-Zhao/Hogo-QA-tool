@@ -14,6 +14,7 @@ import { theme } from '@/theme';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useProjectStore } from '@/store/projectStore';
 import { useDiagnosisStore } from '@/store/diagnosisStore';
+import { useAiChatStore } from '@/store/aiChatStore';
 import type { Dataset } from '@/data/schema';
 import AiAssistantPage from '@/ui/pages/AiAssistantPage';
 
@@ -69,6 +70,9 @@ describe('AiAssistantPage', () => {
     // 第五轮新增：诊断结果与审计日志均为跨用例共享的 store 状态，需显式归零。
     useProjectStore.setState({ aiUsageLogs: [], project: null });
     useDiagnosisStore.getState().clearFullDiagnosis();
+    // P3-B：会话记录迁到 aiChatStore（模块级单例），不再随组件卸载销毁，
+    // 因此用例之间必须显式归零，否则上一条用例的气泡/loading 会污染下一条。
+    useAiChatStore.setState({ entries: [], question: '', allowRaw: false, loading: false });
   });
 
   afterEach(() => {
@@ -178,7 +182,12 @@ describe('AiAssistantPage', () => {
           { finish_reason: 'stop', message: { content: '控制图解读结论：过程受控。' } },
         ],
       }),
-      text: async () => '',
+      text: async () => JSON.stringify({
+        model: 'qwen3.5:9b',
+        choices: [
+          { finish_reason: 'stop', message: { content: '控制图解读结论：过程受控。' } },
+        ],
+      }),
     }));
     vi.stubGlobal('fetch', fetchMock);
 
@@ -228,7 +237,14 @@ describe('AiAssistantPage', () => {
           },
         ],
       }),
-      text: async () => '',
+      text: async () => JSON.stringify({
+        choices: [
+          {
+            finish_reason: 'length',
+            message: { content: '', reasoning: '我正在逐步核对每一条判异准则……' },
+          },
+        ],
+      }),
     }));
     vi.stubGlobal('fetch', fetchMock);
 
@@ -259,6 +275,9 @@ describe('AiAssistantPage —— AI 全面诊断（#12）', () => {
     useProjectStore.getState().clearDataset();
     useProjectStore.setState({ aiUsageLogs: [], project: null });
     useDiagnosisStore.getState().clearFullDiagnosis();
+    // P3-B：会话记录迁到 aiChatStore（模块级单例），不再随组件卸载销毁，
+    // 因此用例之间必须显式归零，否则上一条用例的气泡/loading 会污染下一条。
+    useAiChatStore.setState({ entries: [], question: '', allowRaw: false, loading: false });
   });
 
   const DIAGNOSIS_TEXT = '## 一、总体结论\n过程整体受控，短板为转轴直径。';
@@ -273,7 +292,10 @@ describe('AiAssistantPage —— AI 全面诊断（#12）', () => {
           model: 'deepseek-chat',
           choices: [{ finish_reason: 'stop', message: { content: DIAGNOSIS_TEXT } }],
         }),
-        text: async () => '',
+        text: async () => JSON.stringify({
+          model: 'deepseek-chat',
+          choices: [{ finish_reason: 'stop', message: { content: DIAGNOSIS_TEXT } }],
+        }),
       }),
     );
     vi.stubGlobal('fetch', fetchMock);
@@ -442,6 +464,9 @@ describe('AiAssistantPage —— 服务端错误原文可见（HTTP 400 报障�
     useProjectStore.getState().clearDataset();
     useProjectStore.setState({ aiUsageLogs: [], project: null });
     useDiagnosisStore.getState().clearFullDiagnosis();
+    // P3-B：会话记录迁到 aiChatStore（模块级单例），不再随组件卸载销毁，
+    // 因此用例之间必须显式归零，否则上一条用例的气泡/loading 会污染下一条。
+    useAiChatStore.setState({ entries: [], question: '', allowRaw: false, loading: false });
   });
 
   it('模型名为空 → 一个网络请求都不发，气泡直接点明「模型名」', async () => {
@@ -458,7 +483,7 @@ describe('AiAssistantPage —— 服务端错误原文可见（HTTP 400 报障�
       ok: true,
       status: 200,
       json: async () => ({ choices: [{ message: { content: 'ok' } }] }),
-      text: async () => '',
+      text: async () => JSON.stringify({ choices: [{ message: { content: 'ok' } }] }),
     }));
     vi.stubGlobal('fetch', fetchMock);
 
