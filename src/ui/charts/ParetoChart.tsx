@@ -54,7 +54,11 @@ export function toParetoSeries(pareto: ParetoResult): ParetoSeries {
  * @returns ECharts option 对象
  */
 export function buildParetoOption(series: ParetoSeries): Record<string, unknown> {
+  // 关闭入场动画：图表是数据读数，不需要动效；而打印（Ctrl+P）会触发布局变化 →
+  // ECharts 重绘并重播动画，若此刻被光栅化，就会得到「只有坐标轴、没有数据系列」
+  // 的空图（用户会直接读成「打印没有图」）。见 memory 2026-09-19 记录。
   return {
+    animation: false,
     grid: { top: 40, right: 56, bottom: 56, left: 56 },
     tooltip: {
       trigger: 'axis',

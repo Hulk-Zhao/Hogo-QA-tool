@@ -1,7 +1,7 @@
 /**
- * settingsStore —— AI 配置、模式、规则默认值、主题。
+ * settingsStore —— AI 配置、模式、判异准则开关、报表导出范围、主题。
  *
- * 出处：架构文档 §5、§7；PRD §6。
+ * 出处：架构文档 §5、§7；PRD §6、P0-10/P0-11、P0-18。
  *
  * T05 增强（**保持既有 API 不变**，仅新增字段与动作）：
  * - 新增 `probeStatus`（idle/probing/ai/offline）供设置页显示探测进度；
@@ -10,19 +10,47 @@
  * - 新增 `setProbeStatus` / `applyProbeResult` / `resetMode` 供 `useAiAvailability` 驱动；
  * - AI 配置支持持久化到注入的 `KeyValueStore`（默认内存；UI 层挂载浏览器实现）。
  *
+ * 第五轮 P0 修复新增（用户明确要求「不要 useState」的两处设置项）：
+ * - `rulesConfig`：判异准则 12 条开关，原本在 ControlChartPage 与 SettingsPage
+ *   各持一份 `useState`，**刷新即丢**；现统一进本 store 并持久化；
+ * - `exportOptions`：报表导出范围 7 项勾选（4 表 + 3 图），原本 2 项且是
+ *   `useState`；现进本 store 并持久化。
+ *
+ * 持久化分两条 key（互不影响、可独立降级）：
+ * - `hogo-qa-settings`：AI 配置（`SettingsPersistence`，历史契约，逐字段 sanitize）；
+ * - `hogo-qa-preferences`：判异开关 + 导出范围（`PreferencesPersistence`）。
+ * 拆两条 key 的收益：AI 配置是**敏感且偶发损坏**（手填 Key）的，偏好是**高频变更**
+ * 的；分开后任一损坏都不会拖垮另一条，且旧版本残留的 AI 配置可原样读回。
+ *
  * 兼容性：`mode` / `modeReason` / `aiConfig` / `setMode` / `setAiConfig` 原样保留，
  * T03 已验收的 ModeBadge / AiGate 无需改动。
  */
 
 import { create } from 'zustand';
+import {
+  ALL_RULE_IDS,
+  defaultToggleConfig,
+  type NelsonRuleId,
+  type RuleId,
+  type RuleToggleConfig,
+  type WesternRuleId,
+} from '@/core';
 import { DEFAULT_MAX_TOKENS } from '@/services/ai/types';
 import type { AiProbeResult } from '@/services/ai/types';
+import {
+  DEFAULT_EXPORT_OPTIONS,
+  sanitizeExportOptions,
+  type ExportOptions,
+} from '@/services/report/exportOptions';
 
 /** 运行模式：离线 / AI。 */
 export type AppMode = 'offline' | 'ai';
 
 /** AI 探测状态。 */
 export type AiProbeStatus = 'idle' | 'probing' | 'ai' | 'offline';
+
+/** 判异准则分组。 */
+export type RuleGroup = 'westernElectric' | 'nelson';
 
 /** AI 配置（T05 使用完整字段；此处保留结构）。 */
 export interface AiConfig {
@@ -49,10 +77,25 @@ export interface AiConfig {
 /** 设置项持久化 key。 */
 export const SETTINGS_STORAGE_KEY = 'hogo-qa-settings';
 
+/** 偏好（判异开关 + 导出范围）持久化 key。 */
+export const PREFERENCES_STORAGE_KEY = 'hogo-qa-preferences';
+
 /** 最小持久化接口（避免直接依赖浏览器 API；UI 层注入实现）。 */
 export interface SettingsPersistence {
   load: () => AiConfig | null;
   save: (config: AiConfig) => void;
+}
+
+/** 偏好持久化载荷。 */
+export interface UiPreferences {
+  rulesConfig: RuleToggleConfig;
+  exportOptions: ExportOptions;
+}
+
+/** 偏好持久化接口（与 `SettingsPersistence` 同构，独立 key）。 */
+export interface PreferencesPersistence {
+  load: () => UiPreferences | null;
+  save: (preferences: UiPreferences) => void;
 }
 
 interface SettingsState {
@@ -64,6 +107,10 @@ interface SettingsState {
   probeStatus: AiProbeStatus;
   /** 最近一次探测的离线原因码（'' 表示无）。 */
   lastProbeReason: string;
+  /** 判异准则 12 条开关（控制图页与设置页共用同一份，落盘）。 */
+  rulesConfig: RuleToggleConfig;
+  /** 报表导出范围 7 项勾选（落盘）。 */
+  exportOptions: ExportOptions;
 
   setMode: (mode: AppMode, reason?: string) => void;
   setAiConfig: (config: Partial<AiConfig>) => void;
@@ -72,6 +119,16 @@ interface SettingsState {
   applyProbeResult: (result: AiProbeResult) => void;
   /** 重置为未配置状态（清空密钥，用于「清除配置」）。 */
   resetMode: () => void;
+  /** 整体替换判异开关。 */
+  setRulesConfig: (config: RuleToggleConfig) => void;
+  /** 切换单条准则（W1..W4 / N1..N8）。 */
+  setRule: (ruleId: RuleId, enabled: boolean) => void;
+  /** 整组开/关（西方电气 4 条 / 尼尔森 8 条）。 */
+  setRulesGroup: (group: RuleGroup, enabled: boolean) => void;
+  /** 增量更新导出范围勾选。 */
+  setExportOptions: (patch: Partial<ExportOptions>) => void;
+  /** 恢复默认偏好（判异开关 + 导出范围）。 */
+  resetPreferences: () => void;
 }
 
 export const DEFAULT_AI_CONFIG: AiConfig = {
@@ -131,12 +188,70 @@ export function sanitizeAiConfig(raw: unknown): AiConfig | null {
   };
 }
 
+/**
+ * 容错归一化判异开关：**逐条**处理，非布尔值回落 `defaultToggleConfig()` 对应值。
+ *
+ * 关键场景：旧版本只持久化了部分规则（字段缺失）、或用户手工篡改了
+ * localStorage。逐条回落可保证「读回后 12 条都有明确布尔值」，不会因一条脏
+ * 数据把整份开关丢弃。`raw` 非对象时整体回落默认。
+ *
+ * @param raw 反序列化后的原始值
+ * @returns 合法的 RuleToggleConfig（永不抛异常）
+ */
+export function sanitizeRulesConfig(raw: unknown): RuleToggleConfig {
+  const base = defaultToggleConfig();
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+    return base;
+  }
+  const r = raw as Record<string, unknown>;
+  const weRaw = r.westernElectric;
+  const nelsonRaw = r.nelson;
+  const we = typeof weRaw === 'object' && weRaw !== null ? (weRaw as Record<string, unknown>) : {};
+  const nelson =
+    typeof nelsonRaw === 'object' && nelsonRaw !== null ? (nelsonRaw as Record<string, unknown>) : {};
+  const out: RuleToggleConfig = {
+    westernElectric: { ...base.westernElectric },
+    nelson: { ...base.nelson },
+  };
+  for (const id of ALL_RULE_IDS) {
+    const pool = id.startsWith('W') ? we : nelson;
+    const value = pool[id];
+    if (typeof value === 'boolean') {
+      if (id.startsWith('W')) {
+        out.westernElectric[id as WesternRuleId] = value;
+      } else {
+        out.nelson[id as NelsonRuleId] = value;
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * 容错归一化偏好载荷（判异开关 + 导出范围）。
+ *
+ * @param raw 反序列化后的原始值
+ * @returns 合法偏好；`raw` 非普通对象时返回 null（调用方回落默认）
+ */
+export function sanitizeUiPreferences(raw: unknown): UiPreferences | null {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+    return null;
+  }
+  const r = raw as Record<string, unknown>;
+  return {
+    rulesConfig: sanitizeRulesConfig(r.rulesConfig),
+    exportOptions: sanitizeExportOptions(r.exportOptions),
+  };
+}
+
 export const useSettingsStore = create<SettingsState>((set) => ({
   mode: 'offline',
   modeReason: '尚未配置 AI 服务',
   aiConfig: { ...DEFAULT_AI_CONFIG },
   probeStatus: 'idle',
   lastProbeReason: '',
+  rulesConfig: defaultToggleConfig(),
+  exportOptions: { ...DEFAULT_EXPORT_OPTIONS },
 
   setMode: (mode, reason = '') => set({ mode, modeReason: reason }),
 
@@ -161,6 +276,54 @@ export const useSettingsStore = create<SettingsState>((set) => ({
       probeStatus: 'idle',
       lastProbeReason: '',
       aiConfig: { ...DEFAULT_AI_CONFIG },
+    }),
+
+  setRulesConfig: (config) => set({ rulesConfig: sanitizeRulesConfig(config) }),
+
+  setRule: (ruleId, enabled) =>
+    set((s) => {
+      if (ruleId.startsWith('W')) {
+        const we = { ...s.rulesConfig.westernElectric, [ruleId as WesternRuleId]: enabled };
+        return { rulesConfig: { ...s.rulesConfig, westernElectric: we } };
+      }
+      const nelson = { ...s.rulesConfig.nelson, [ruleId as NelsonRuleId]: enabled };
+      return { rulesConfig: { ...s.rulesConfig, nelson } };
+    }),
+
+  setRulesGroup: (group, enabled) =>
+    set((s) => {
+      if (group === 'westernElectric') {
+        return {
+          rulesConfig: {
+            ...s.rulesConfig,
+            westernElectric: { W1: enabled, W2: enabled, W3: enabled, W4: enabled },
+          },
+        };
+      }
+      return {
+        rulesConfig: {
+          ...s.rulesConfig,
+          nelson: {
+            N1: enabled,
+            N2: enabled,
+            N3: enabled,
+            N4: enabled,
+            N5: enabled,
+            N6: enabled,
+            N7: enabled,
+            N8: enabled,
+          },
+        },
+      };
+    }),
+
+  setExportOptions: (patch) =>
+    set((s) => ({ exportOptions: sanitizeExportOptions({ ...s.exportOptions, ...patch }) })),
+
+  resetPreferences: () =>
+    set({
+      rulesConfig: defaultToggleConfig(),
+      exportOptions: { ...DEFAULT_EXPORT_OPTIONS },
     }),
 }));
 
@@ -189,4 +352,41 @@ export function persistAiConfig(persistence: SettingsPersistence | null): void {
     return;
   }
   persistence.save(useSettingsStore.getState().aiConfig);
+}
+
+/** 读取当前偏好（判异开关 + 导出范围）。 */
+export function currentPreferences(): UiPreferences {
+  const s = useSettingsStore.getState();
+  return { rulesConfig: s.rulesConfig, exportOptions: s.exportOptions };
+}
+
+/**
+ * 从持久化存储加载偏好。
+ *
+ * @param persistence 持久化实现（可注入；null 表示不持久化）
+ */
+export function hydratePreferences(persistence: PreferencesPersistence | null): void {
+  if (!persistence) {
+    return;
+  }
+  const loaded = persistence.load();
+  if (!loaded) {
+    return;
+  }
+  useSettingsStore.setState({
+    rulesConfig: sanitizeRulesConfig(loaded.rulesConfig),
+    exportOptions: sanitizeExportOptions(loaded.exportOptions),
+  });
+}
+
+/**
+ * 保存当前偏好到持久化存储。
+ *
+ * @param persistence 持久化实现
+ */
+export function persistPreferences(persistence: PreferencesPersistence | null): void {
+  if (!persistence) {
+    return;
+  }
+  persistence.save(currentPreferences());
 }

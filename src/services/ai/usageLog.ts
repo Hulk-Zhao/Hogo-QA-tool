@@ -64,6 +64,7 @@ export const USAGE_FEATURE_LABEL: Record<AiFeature, string> = {
   suggest: '改善建议',
   report: '报告文字',
   qa: '数据问答',
+  fullDiagnosis: '全面诊断',
 };
 
 /** 载荷范围 → 中文名。 */

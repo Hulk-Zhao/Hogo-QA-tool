@@ -31,6 +31,14 @@
     page-break-before: always;
   }
 
+  /* 图表卡片（标题 + 图形）整体不可跨页拆分。
+     否则会出现「标题留在上一页、图形被挤到下一页」的空白框观感
+     （用户会直接读成「打印没有图」）。 */
+  [data-testid='report-charts'] > * {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
   /* 保证图表容器在打印时可见 */
   .print-chart canvas,
   .print-chart svg {

@@ -8,26 +8,31 @@
  *   - `buildReportModel` / `buildExcelReport` 已在 `@/data/exporter` 实现
  *     （4 sheet、无图片），本服务只做「下载 / 打印」这两件带副作用的事，
  *     并把这些副作用封装为可注入接口，便于在 node 环境单测编排逻辑。
- *   - 图像勾选项仅作用于**打印/PDF**，对 Excel 无效（架构硬约束）。
+ *   - 导出范围勾选（`ExportOptions`）见 `./exportOptions`：数据表项作用于页面
+ *     预览与打印/PDF，图表项仅作用于打印/PDF（Excel 永不含图片，架构硬约束）。
  */
 
 import { buildExcelReport, defaultReportFileName } from '@/data/exporter/excelReport';
 import { buildReportModel, type ReportModel } from '@/data/exporter/reportModel';
 import type { Project } from '@/data/schema';
+import { hasAnyChartOption, type ExportOptions } from './exportOptions';
 
-/** 导出选项。 */
-export interface ExportOptions {
-  /** 是否在打印输出中包含控制图/柏拉图截图（仅影响打印，不影响 Excel）。 */
-  includeChartImagesInPrint: boolean;
-  /** 是否包含数据表。 */
-  includeTables: boolean;
-}
-
-/** 默认导出选项。 */
-export const DEFAULT_EXPORT_OPTIONS: ExportOptions = {
-  includeChartImagesInPrint: true,
-  includeTables: true,
-};
+/*
+ * ExportOptions / DEFAULT_EXPORT_OPTIONS 已迁至 `./exportOptions`：
+ * store 层需持久化该结构（第五轮需求 #11「勾选状态走 settingsStore」），
+ * 而本文件经 `excelReport` 间接依赖 `xlsx`（体积大），拆出纯类型模块可让
+ * store 零成本引用。此处转发导出以兼容既有调用点。
+ */
+export {
+  DEFAULT_EXPORT_OPTIONS,
+  EXPORT_OPTION_KEYS,
+  TABLE_OPTION_KEYS,
+  CHART_OPTION_KEYS,
+  sanitizeExportOptions,
+  hasAnyExportOption,
+  hasAnyChartOption,
+} from './exportOptions';
+export type { ExportOptions } from './exportOptions';
 
 /** 文件保存函数签名（可注入，便于测试）。 */
 export type SaveBlobFn = (data: ArrayBuffer, fileName: string, mime: string) => void;
@@ -87,8 +92,9 @@ export function exportExcelReport(model: ReportModel, save: SaveBlobFn = downloa
  * 触发浏览器打印（PDF 经原生「打印 → 另存为 PDF」）。
  *
  * 打印样式由 `src/print.css` 提供：隐藏 .no-print、图表/表格分页控制。
- * `includeChartImagesInPrint` 通过给根节点加/去 `.print-hide-charts` 类
- * 切换是否打印图像（纯 CSS 行为，不涉及 jsPDF）。
+ * `printReport` 只负责「按勾选结果给根节点加/去 `.print-hide-charts` 类」
+ * （图区整体兜底隐藏），具体每张图表/每张表的取舍由 `ReportPage` 按同一份
+ * `ExportOptions` 条件渲染完成 —— 即页面所见即打印所得。
  *
  * @param options 导出选项
  * @param printFn 打印函数（默认 window.print；可注入便于测试）
@@ -98,7 +104,7 @@ export function printReport(
   options: ExportOptions,
   printFn: () => void = defaultPrint,
 ): boolean {
-  applyPrintClass(options.includeChartImagesInPrint);
+  applyPrintClass(hasAnyChartOption(options));
   printFn();
   return true;
 }

@@ -20,6 +20,12 @@ import {
   applyPrintClass,
   printReport,
   PRINT_HIDE_CHARTS_CLASS,
+  DEFAULT_EXPORT_OPTIONS,
+  CHART_OPTION_KEYS,
+  TABLE_OPTION_KEYS,
+  sanitizeExportOptions,
+  hasAnyChartOption,
+  hasAnyExportOption,
   type SaveBlobFn,
 } from '@/services/report';
 import type { Project } from '@/data/schema';
@@ -229,16 +235,66 @@ describe('reportService —— Excel 导出（≥4 sheet，无图片）', () => 
   });
 });
 
-describe('reportService —— 打印选项仅作用于打印', () => {
+describe('reportService —— 导出范围（7 项：4 表 + 3 图）', () => {
+  it('导出范围恰好 7 项，且 4 表 + 3 图分组无遗漏（证伪：漏项/多项即变红）', () => {
+    expect(TABLE_OPTION_KEYS).toEqual(['cpkSummary', 'defectStats', 'rawDimensions', 'rawDefects']);
+    expect(CHART_OPTION_KEYS).toEqual([
+      'controlChartImage',
+      'paretoChartImage',
+      'capabilityChartImage',
+    ]);
+    expect([...TABLE_OPTION_KEYS, ...CHART_OPTION_KEYS]).toHaveLength(7);
+    expect(Object.keys(DEFAULT_EXPORT_OPTIONS).sort()).toEqual(
+      [...TABLE_OPTION_KEYS, ...CHART_OPTION_KEYS].sort(),
+    );
+  });
+
+  it('sanitizeExportOptions：旧版 2 字段结构读回后补齐为 7 项且默认全选', () => {
+    // 历史持久化残留（includeChartImagesInPrint / includeTables）不得导致整份丢弃。
+    const legacy = sanitizeExportOptions({ includeChartImagesInPrint: false, includeTables: true });
+    expect(legacy).toEqual(DEFAULT_EXPORT_OPTIONS);
+    // 脏值（字符串 / null / 数字）逐项回落默认 true，而非整份丢弃。
+    const dirty = sanitizeExportOptions({ cpkSummary: 'yes', defectStats: null, rawDefects: 1 });
+    expect(dirty).toEqual(DEFAULT_EXPORT_OPTIONS);
+    // 显式 false 必须被保留（否则「取消勾选」会失效）。
+    expect(sanitizeExportOptions({ ...DEFAULT_EXPORT_OPTIONS, cpkSummary: false }).cpkSummary).toBe(false);
+    // 非对象 → 默认。
+    expect(sanitizeExportOptions(null)).toEqual(DEFAULT_EXPORT_OPTIONS);
+  });
+
+  it('hasAnyChartOption：只看三项图表，任一勾选即 true', () => {
+    expect(hasAnyChartOption(DEFAULT_EXPORT_OPTIONS)).toBe(true);
+    const onlyPareto = {
+      ...DEFAULT_EXPORT_OPTIONS,
+      controlChartImage: false,
+      capabilityChartImage: false,
+    };
+    expect(hasAnyChartOption(onlyPareto)).toBe(true);
+    const noneChart = {
+      ...DEFAULT_EXPORT_OPTIONS,
+      controlChartImage: false,
+      paretoChartImage: false,
+      capabilityChartImage: false,
+    };
+    expect(hasAnyChartOption(noneChart)).toBe(false);
+  });
+
+  it('hasAnyExportOption：全不勾选为 false（UI 据此拦掉空打印）', () => {
+    expect(hasAnyExportOption(DEFAULT_EXPORT_OPTIONS)).toBe(true);
+    const none = Object.fromEntries(
+      [...TABLE_OPTION_KEYS, ...CHART_OPTION_KEYS].map((k) => [k, false]),
+    );
+    expect(hasAnyExportOption(sanitizeExportOptions(none))).toBe(false);
+  });
+
   it('printReport 调用注入的打印函数并返回 true', () => {
     const spy = vi.fn();
-    const ok = printReport({ includeChartImagesInPrint: true, includeTables: true }, spy);
+    const ok = printReport({ ...DEFAULT_EXPORT_OPTIONS }, spy);
     expect(ok).toBe(true);
     expect(spy).toHaveBeenCalledTimes(1);
   });
 
-  it('includeChartImagesInPrint=false 时给 body 加隐藏类', () => {
-    // node 环境无 document：applyPrintClass 应安全 no-op，不抛异常。
+  it('applyPrintClass 在 node（无 document）环境安全 no-op', () => {
     expect(() => applyPrintClass(false)).not.toThrow();
     expect(typeof PRINT_HIDE_CHARTS_CLASS).toBe('string');
   });

@@ -42,6 +42,13 @@ describe('SettingsPage', () => {
     expect(screen.getByTestId('settings-mode-chip').textContent).toContain('离线模式');
   });
 
+  it('展示构建标识（产物自证版本；测试环境未注入 → dev）', () => {
+    renderPage();
+    const stamp = screen.getByTestId('app-build-stamp');
+    expect(stamp.textContent).toContain('构建：');
+    expect(stamp.textContent).toContain('dev');
+  });
+
   it('constants 表渲染 n=2..25 共 24 行，且 D3/B3 小 n 显示「—」而非 0', () => {
     renderPage();
     const table = screen.getByTestId('constants-table');

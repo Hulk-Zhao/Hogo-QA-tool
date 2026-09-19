@@ -38,4 +38,11 @@ vite.config.*.timestamp-*.mjs
 # Local probe artifacts
 .probe/*.jsonl
 .probe/*.log
+# 大体积二进制产物（可用 .probe/make-defect-xlsx.mjs + p0-verify.mjs 一条命令重生成）
+.probe/*.pdf
+.probe/*.xlsx
+.probe/*.png
+
+# 临时补丁工具（本机 ad-hoc 脚本，非项目产物）
+.workbuddy/tmp/
 

@@ -185,6 +185,68 @@ const ERROR_MESSAGE: Record<AiErrorCode, string> = {
   unknown: 'AI 服务返回未知错误。',
 };
 
+/** 服务端错误原文进入 UI 前的最大长度（避免把整页 HTML / 日志塞进气泡）。 */
+export const MAX_SERVER_DETAIL_CHARS = 300;
+
+/**
+ * 把服务端错误响应体压成**一句话**，让用户直接看到真实原因。
+ *
+ * 解析优先级（兼容 Ollama / vLLM / OpenAI 的错误体形状）：
+ * 1. `{ error: { message } }` —— Ollama 与 OpenAI 官方形状（实测 400 走这条）；
+ * 2. `{ error: "文本" }`；
+ * 3. `{ message: "文本" }`；
+ * 4. 以上都不成立（含 HTML 错误页、纯文本）→ 原样使用。
+ *
+ * 统一做「空白折叠 + 截断」，保证可安全嵌入一行 UI 文案。
+ *
+ * @param raw 服务端响应体原文
+ * @returns 单行、可展示的原文；无内容时返回空串
+ */
+export function extractServerDetail(raw: string): string {
+  const text = (raw ?? '').trim();
+  if (text.length === 0) {
+    return '';
+  }
+  let message = text;
+  try {
+    const parsed = JSON.parse(text) as { error?: unknown; message?: unknown };
+    const err: unknown = parsed?.error;
+    if (typeof err === 'string' && err.trim().length > 0) {
+      message = err;
+    } else if (typeof err === 'object' && err !== null) {
+      const inner = (err as { message?: unknown }).message;
+      if (typeof inner === 'string' && inner.trim().length > 0) {
+        message = inner;
+      }
+    } else if (typeof parsed?.message === 'string' && parsed.message.trim().length > 0) {
+      message = parsed.message;
+    }
+  } catch {
+    // 非 JSON（HTML 错误页 / 纯文本）：原样使用。
+  }
+  const collapsed = message.replace(/\s+/g, ' ').trim();
+  return collapsed.length > MAX_SERVER_DETAIL_CHARS
+    ? collapsed.slice(0, MAX_SERVER_DETAIL_CHARS) + '…'
+    : collapsed;
+}
+
+/**
+ * 组装「HTTP 非 2xx」的面向用户文案：基础说明 + 状态码 + **服务端原文**。
+ *
+ * 服务端原文是唯一能让用户自助定位（模型名写错 / 字段不被支持 / 上下文超限）的信息，
+ * 必须透出而不是丢弃。
+ *
+ * @param code 归一化错误码
+ * @param status HTTP 状态码
+ * @param detail 已归一化的服务端原文（可为空串）
+ * @returns 面向用户的错误文案
+ */
+function httpErrorMessage(code: AiErrorCode, status: number, detail: string): string {
+  return detail.length > 0
+    ? ERROR_MESSAGE[code] + '（HTTP ' + status + '：' + detail + '）'
+    : ERROR_MESSAGE[code] + '（HTTP ' + status + '）';
+}
+
 /**
  * 从 fetch 异常中判定错误码（超时 vs 取消 vs 网络）。
  *
@@ -302,6 +364,23 @@ export async function chatCompletion(
     };
   }
 
+  // 模型名是 chat 请求的**必填项**：空模型名实测会被 Ollama 以
+  // `400 {"error":{"message":"model is required"}}` 拒绝。而 `DEFAULT_AI_CONFIG.model`
+  // 就是空串（用户从未填写 / 配置被重置时即为此态），发出去只会换来一个
+  // 看不懂的 400 —— 本地前置拦截并说清该改哪个字段，收益远大于一次网络往返。
+  // 注意：**未发出请求**，故 `httpStatus` 保持 undefined（与既有契约一致）。
+  if (model.trim().length === 0) {
+    return {
+      ok: false,
+      content: '',
+      errorCode: 'content',
+      errorMessage:
+        '未配置「模型名」，请求未发出（服务端会返回 400 model is required）。' +
+        '请在「设置」页填写模型名（如 qwen3.5:9b）后重试。',
+      model,
+    };
+  }
+
   const timeoutMs = options.timeoutMs ?? ANALYSIS_TIMEOUT_MS;
   const maxTokens = options.maxTokens ?? DEFAULT_MAX_TOKENS;
   const hasReasoningEffort = options.reasoningEffort !== undefined;
@@ -347,13 +426,18 @@ export async function chatCompletion(
       } catch {
         detail = '';
       }
+      // 服务端原文是**唯一**能指明真实原因的信息（「model is required」等）：
+      // 归一化后的 errorCode 只会把任意 4xx 压成 content，不足以自助排查。
+      // 故此处既拼进 errorMessage（一行可读文案），又保留原文供 UI 单独展示。
+      const serverDetail = extractServerDetail(detail);
       return {
         ok: false,
         content: '',
         errorCode: code,
-        errorMessage: `${ERROR_MESSAGE[code]}${detail ? `（HTTP ${response.status}）` : ''}`,
+        errorMessage: httpErrorMessage(code, response.status, serverDetail),
         model,
         httpStatus: response.status,
+        ...(serverDetail.length > 0 ? { serverDetail } : {}),
       };
     }
 
@@ -475,6 +559,13 @@ export async function probeAi(
     return offline('NO_BASE_URL', '未配置 Base URL，当前为离线模式。');
   }
 
+  // 只探测 `/models` 会把「Base URL 可达但模型名没填」误判为「AI 模式可用」：
+  // 用户能点「AI 全面诊断」，却只会收到 400 `model is required`（已实测复现）。
+  // 模型名是 chat 请求的必填项，缺失即等于不可用，故在此直接判定离线并说明原因。
+  if ((config.model ?? '').trim().length === 0) {
+    return offline('NOT_CONFIGURED', '未配置模型名，当前为离线模式。');
+  }
+
   const doFetch = fetchImpl ?? (globalThis.fetch as unknown as FetchLike | undefined);
   if (!doFetch) {
     return offline('UNREACHABLE', '当前环境不支持网络请求，已降级为离线模式。');
@@ -524,4 +615,11 @@ export async function probeAi(
 }
 
 /** 导出内部工具供测试使用。 */
-export const __internal = { buildHeaders, withTimeout, errorCodeFromStatus, errorCodeFromException };
+export const __internal = {
+  buildHeaders,
+  withTimeout,
+  errorCodeFromStatus,
+  errorCodeFromException,
+  extractServerDetail,
+  httpErrorMessage,
+};

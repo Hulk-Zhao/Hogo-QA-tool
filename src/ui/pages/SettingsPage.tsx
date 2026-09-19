@@ -39,9 +39,9 @@ import {
   getAllConstantsRaw,
   MAX_SUBGROUP_N,
   MIN_SUBGROUP_N,
-  type RuleToggleConfig,
 } from '@/core';
 import { useSettingsStore, MIN_MAX_TOKENS } from '@/store/settingsStore';
+import { buildStamp } from '@/ui/buildStamp';
 import { useProjectStore } from '@/store/projectStore';
 import { useAiAvailability } from '@/ui/hooks/useAiAvailability';
 import { USAGE_FEATURE_LABEL, USAGE_SCOPE_LABEL } from '@/services/ai';
@@ -79,14 +79,6 @@ function isLocalHostBaseUrl(baseUrl: string): boolean {
   return /(^|\/\/)(localhost|127\.0\.0\.1|\[::1\])(?::\d+)?(?:\/|$)/.test(normalized);
 }
 
-/** 默认规则开关（本地 UI 状态）。 */
-function initialToggle(): RuleToggleConfig {
-  return {
-    westernElectric: { W1: true, W2: true, W3: true, W4: true },
-    nelson: { N1: false, N2: false, N3: false, N4: false, N5: true, N6: true, N7: true, N8: true },
-  };
-}
-
 /**
  * 渲染设置页。
  *
@@ -97,10 +89,16 @@ export default function SettingsPage(): ReactElement {
   const aiConfig = useSettingsStore((s) => s.aiConfig);
   const setAiConfig = useSettingsStore((s) => s.setAiConfig);
   const applyProbeResult = useSettingsStore((s) => s.applyProbeResult);
-  const project = useProjectStore((s) => s.project);
+  // 审计记录唯一真源 = projectStore 切片（AI 助手每次请求后写入）。
+  const usageLogs = useProjectStore((s) => s.aiUsageLogs);
   const { mode, probing, reason, message, retry } = useAiAvailability();
 
-  const [toggles, setToggles] = useState<RuleToggleConfig>(initialToggle());
+  /**
+   * 判异准则开关与控制图页**同源**（settingsStore.rulesConfig）。
+   * 第五轮 P0 修复：此前是本页一份 `useState`，改完刷新即丢。
+   */
+  const toggles = useSettingsStore((s) => s.rulesConfig);
+  const setRule = useSettingsStore((s) => s.setRule);
   const [testResult, setTestResult] = useState<'idle' | 'ok' | 'fail'>('idle');
 
   const constants = useMemo<ConstantRow[]>(() => {
@@ -125,8 +123,6 @@ export default function SettingsPage(): ReactElement {
       setTestResult('fail');
     }
   };
-
-  const usageLogs = project?.aiUsageLogs ?? [];
 
   // 离线单文件版（file://）直连本机 AI 服务被浏览器跨源策略拦截时的针对性提示。
   const showLocalFileHint =
@@ -309,18 +305,7 @@ export default function SettingsPage(): ReactElement {
                     <Switch
                       size="small"
                       checked={Boolean(enabled)}
-                      onChange={(e) => {
-                        const checked = e.target.checked;
-                        setToggles((prev) => {
-                          if (meta.group === 'westernElectric') {
-                            return {
-                              ...prev,
-                              westernElectric: { ...prev.westernElectric, [ruleId]: checked },
-                            };
-                          }
-                          return { ...prev, nelson: { ...prev.nelson, [ruleId]: checked } };
-                        });
-                      }}
+                      onChange={(e) => setRule(ruleId, e.target.checked)}
                       inputProps={{ 'aria-label': `${ruleId} ${meta.shortName}` }}
                     />
                   }
@@ -412,6 +397,15 @@ export default function SettingsPage(): ReactElement {
             </Typography>
             <Typography variant="body2">
               • 每次 AI 请求都会写入使用审计（见下方），记录发送的数据范围。
+            </Typography>
+            <Typography
+              variant="caption"
+              color="text.disabled"
+              display="block"
+              sx={{ mt: 1 }}
+              data-testid="app-build-stamp"
+            >
+              构建：{buildStamp()}
             </Typography>
           </Stack>
         </CardContent>

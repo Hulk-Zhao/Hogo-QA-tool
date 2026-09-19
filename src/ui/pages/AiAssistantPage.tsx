@@ -1,12 +1,19 @@
 /**
  * AiAssistantPage —— AI 质量分析助手（P0-23；PRD §7.2；T05 验收要点 3/4）。
  *
- * 功能（5 个，架构 §8.3）：
+ * 功能（6 个，架构 §8.3 + 第五轮需求 #12）：
  * 1. 解读当前控制图（chartExplain）：输出「问题子组/特性 + 可执行动作」；
  * 2. 解读能力分析（capExplain）；
  * 3. 改善建议（suggest，≤3 条按优先级）；
  * 4. 生成报告文字（report，Markdown）；
- * 5. 数据问答（qa，仅基于统计摘要）。
+ * 5. 数据问答（qa，仅基于统计摘要）；
+ * 6. **AI 全面诊断（fullDiagnosis）**：一键生成五节制 Markdown 诊断报告，
+ *    结果写入 `diagnosisStore` **持久化**（需求明确「不要 useState」），
+ *    支持复制与导出 .md 文件。
+ *
+ * 审计：每次请求都调用 `projectStore.appendAiUsageLog`，让设置页的
+ * 「AI 使用审计」表反映真实请求（此前 buildUsageEntry 的返回值被直接丢弃，
+ * 审计表永远为空 —— 属接线类缺陷）。
  *
  * 数据主权（架构 §8.2）：
  * - 每次请求前展示 `sentFields` 清单；
@@ -40,18 +47,24 @@ import type { ReactElement } from 'react';
 import { buildCapabilitySummary, buildSubgroups, computeCapability } from '@/core';
 import type { CapabilitySummaryInput } from '@/core';
 import {
+  buildDiagnosisMarkdown,
+  buildFullDiagnosisRecord,
   buildPayload,
   buildUsageEntry,
   chatCompletion,
+  diagnosisFileName,
   type AiFeature,
   type ChatCompletionOptions,
   type ChatMessage,
 } from '@/services/ai';
 import type { AiClientConfig } from '@/services/ai';
 import { buildMarkdownReport } from '@/services/report/markdownReport';
+import { downloadBlob } from '@/services/report';
 import { buildReportModel } from '@/data/exporter/reportModel';
 import { useProjectStore } from '@/store/projectStore';
+import { useDiagnosisStore } from '@/store/diagnosisStore';
 import { useSettingsStore } from '@/store/settingsStore';
+import { useUiStore } from '@/store/uiStore';
 import EmptyState from '@/ui/components/EmptyState';
 import ConfirmDialog from '@/ui/components/ConfirmDialog';
 import { writeClipboard } from '@/ui/clipboard';
@@ -67,6 +80,7 @@ interface QuickAction {
 }
 
 const QUICK_ACTIONS: QuickAction[] = [
+  { feature: 'fullDiagnosis', label: 'AI 全面诊断（一键）', needsAnalysis: true },
   { feature: 'chartExplain', label: '解读当前控制图', needsAnalysis: true },
   { feature: 'capExplain', label: '解读能力分析', needsAnalysis: true },
   { feature: 'suggest', label: '生成改善建议', needsAnalysis: true },
@@ -84,6 +98,8 @@ interface ChatEntry {
   /** 发送字段清单。 */
   sentFields?: string[];
   ok?: boolean;
+  /** 失败时服务端返回的原文（如 `model is required`），供用户自助定位。 */
+  serverDetail?: string;
 }
 
 /** 生成页面内唯一 id。 */
@@ -153,7 +169,14 @@ function AiAssistantContent(): ReactElement {
   const project = useProjectStore((s) => s.project);
   const dataset = useProjectStore((s) => s.dataset);
   const projectName = useProjectStore((s) => s.projectName);
+  const appendAiUsageLog = useProjectStore((s) => s.appendAiUsageLog);
   const aiConfig = useSettingsStore((s) => s.aiConfig);
+  const pushToast = useUiStore((s) => s.pushToast);
+
+  // 全面诊断结果：来自持久化 store，不在组件 state 里（需求 #12）。
+  const fullDiagnosis = useDiagnosisStore((s) => s.fullDiagnosis);
+  const setFullDiagnosis = useDiagnosisStore((s) => s.setFullDiagnosis);
+  const clearFullDiagnosis = useDiagnosisStore((s) => s.clearFullDiagnosis);
 
   const [entries, setEntries] = useState<ChatEntry[]>([]);
   const [question, setQuestion] = useState('');
@@ -161,6 +184,7 @@ function AiAssistantContent(): ReactElement {
   const [allowRaw, setAllowRaw] = useState(false);
   const [pendingRaw, setPendingRaw] = useState<AiFeature | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [diagnosisCopied, setDiagnosisCopied] = useState(false);
   const lastRequest = useRef<{ feature: AiFeature; note: string } | null>(null);
 
   const summary = useMemo(
@@ -206,8 +230,22 @@ function AiAssistantContent(): ReactElement {
     }
     const response = await chatCompletion(config, payload.messages as ChatMessage[], requestOptions);
 
-    // 记录审计（AiUsageLog）。
+    // 记录审计（AiUsageLog）—— 必须真正写入 store，否则设置页审计表永远为空。
     const entry = buildUsageEntry(feature, payload.scope, response.model, response.ok);
+    appendAiUsageLog(entry);
+
+    // 全面诊断：仅成功且有正文时落盘，避免把错误信息当成「报告」持久化。
+    if (feature === 'fullDiagnosis' && response.ok && response.content.trim().length > 0) {
+      setFullDiagnosis(
+        buildFullDiagnosisRecord(response.content, {
+          model: response.model,
+          scope: payload.scope,
+          sentFields: payload.sentFields,
+          projectName,
+          characteristicCount: dataset?.characteristics.length ?? 0,
+        }),
+      );
+    }
     // 正文为空但模型返回了推理内容时，把思考过程一并展示：
     // 让用户看到「模型确实在思考、只是配额被思考吃光」，而不是只收到一句无信息量的报错。
     const assistantText = response.ok
@@ -224,6 +262,7 @@ function AiAssistantContent(): ReactElement {
         scope: entry.sentPayloadScope,
         sentFields: payload.sentFields,
         ok: response.ok,
+        ...(response.serverDetail ? { serverDetail: response.serverDetail } : {}),
       },
     ]);
     setLoading(false);
@@ -252,6 +291,35 @@ function AiAssistantContent(): ReactElement {
       setTimeout(() => setCopiedId(null), 1500);
     } catch {
       setCopiedId(null);
+    }
+  };
+
+  /** 导出全面诊断报告为 .md 文件（元信息头 + AI 正文）。 */
+  const exportDiagnosis = (): void => {
+    if (!fullDiagnosis) {
+      return;
+    }
+    try {
+      const markdown = buildDiagnosisMarkdown(fullDiagnosis);
+      const buffer = new TextEncoder().encode(markdown).buffer as ArrayBuffer;
+      downloadBlob(buffer, diagnosisFileName(fullDiagnosis), 'text/markdown;charset=utf-8');
+      pushToast('已导出诊断报告（Markdown）', 'success');
+    } catch (e) {
+      pushToast(`导出失败：${e instanceof Error ? e.message : String(e)}`, 'error');
+    }
+  };
+
+  /** 复制全面诊断报告（含元信息头）。 */
+  const copyDiagnosis = async (): Promise<void> => {
+    if (!fullDiagnosis) {
+      return;
+    }
+    try {
+      await writeClipboard(buildDiagnosisMarkdown(fullDiagnosis));
+      setDiagnosisCopied(true);
+      setTimeout(() => setDiagnosisCopied(false), 1500);
+    } catch {
+      setDiagnosisCopied(false);
     }
   };
 
@@ -334,6 +402,71 @@ function AiAssistantContent(): ReactElement {
           </Typography>
         </CardContent>
       </Card>
+
+      {/* 全面诊断结果（持久化：刷新 / 切换路由 / 重挂载都不丢） */}
+      {fullDiagnosis ? (
+        <Card variant="outlined" data-testid="ai-full-diagnosis">
+          <CardContent>
+            <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+              <Typography variant="subtitle1" fontWeight={600}>
+                AI 全面诊断报告
+              </Typography>
+              <Chip
+                size="small"
+                color="primary"
+                variant="outlined"
+                label={`已保存 · ${fullDiagnosis.model || '未知模型'}`}
+                data-testid="diagnosis-model-chip"
+              />
+              <Chip
+                size="small"
+                variant="outlined"
+                color={fullDiagnosis.scope === 'raw' ? 'warning' : 'default'}
+                label={fullDiagnosis.scope === 'raw' ? '已发送：摘要 + 明细' : '已发送：仅摘要'}
+              />
+              <Box sx={{ flexGrow: 1 }} />
+              <Button size="small" startIcon={<CopyIcon />} onClick={() => void copyDiagnosis()}>
+                {diagnosisCopied ? '已复制' : '复制'}
+              </Button>
+              <Button
+                size="small"
+                variant="contained"
+                onClick={exportDiagnosis}
+                data-testid="diagnosis-export"
+              >
+                导出 Markdown
+              </Button>
+              <Button
+                size="small"
+                color="inherit"
+                onClick={clearFullDiagnosis}
+                data-testid="diagnosis-clear"
+              >
+                清除
+              </Button>
+            </Stack>
+            <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
+              生成时间：{fullDiagnosis.generatedAt || '—'} · 项目：{fullDiagnosis.projectName || '未命名项目'} ·
+              纳入特性数：{fullDiagnosis.characteristicCount}
+            </Typography>
+            <Typography
+              variant="body2"
+              component="pre"
+              sx={{
+                whiteSpace: 'pre-wrap',
+                fontFamily: 'inherit',
+                mt: 1,
+                maxHeight: 420,
+                overflow: 'auto',
+                m: 0,
+              }}
+              data-testid="diagnosis-content"
+            >
+              {fullDiagnosis.content}
+            </Typography>
+          </CardContent>
+        </Card>
+      ) : null}
 
       {/* 数据问答 */}
       <Card variant="outlined">
@@ -421,6 +554,16 @@ function AiAssistantContent(): ReactElement {
                 {entry.sentFields && entry.sentFields.length > 0 ? (
                   <Typography variant="caption" color="text.disabled" sx={{ mt: 0.5, display: 'block' }}>
                     发送字段：{entry.sentFields.join('、')}
+                  </Typography>
+                ) : null}
+                {entry.serverDetail ? (
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ mt: 0.5, display: 'block', fontFamily: 'monospace' }}
+                    data-testid="ai-server-detail"
+                  >
+                    服务端原文：{entry.serverDetail}
                   </Typography>
                 ) : null}
               </CardContent>

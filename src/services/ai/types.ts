@@ -5,8 +5,17 @@
  * 且禁止 import React / MUI（架构 §2.9）。
  */
 
-/** AI 功能标识（与 `AiUsageLog.feature` 对齐）。 */
-export type AiFeature = 'chartExplain' | 'capExplain' | 'suggest' | 'report' | 'qa';
+/**
+ * AI 功能标识（与 `AiUsageLog.feature` 对齐）。
+ *
+ * 第五轮需求 #12 新增 `fullDiagnosis`（AI 全面诊断）：一次请求产出可交付的
+ * Markdown 诊断报告。新增枚举值时必须同步四处，缺一处即为「接线类缺陷」：
+ *   1. 本条联合类型；
+ *   2. `payloadBuilder.FEATURE_LABEL` / `FEATURE_SYSTEM_PROMPT`；
+ *   3. `usageLog.USAGE_FEATURE_LABEL`（设置页用量表）；
+ *   4. `data/schema.AiUsageLog.feature`（持久化实体）。
+ */
+export type AiFeature = 'chartExplain' | 'capExplain' | 'suggest' | 'report' | 'qa' | 'fullDiagnosis';
 
 /**
  * 默认最大输出 tokens（唯一真源，settingsStore/store 与 aiClient 共同引用）。
@@ -83,6 +92,17 @@ export interface AiResponse {
    * 无法区分「路径写错」与「服务连通但无正文」）。
    */
   httpStatus?: number;
+  /**
+   * 服务端错误响应体的**可读原文**（仅 HTTP 非 2xx 时填充）。
+   *
+   * 为什么必须留着：Ollama / vLLM / OpenAI 的 400 会明确写出原因
+   * （`model is required`、`invalid reasoning value: 'x'`…），而 `errorCode` 是
+   * 归一化后的粗粒度分类——任意 4xx 都被压成 `'content'`。此前这里**读完即丢**，
+   * 用户只能看到「请检查模型名与参数」这种无法自助排查的泛化文案
+   * （实测复现：空模型名 → 400 `model is required`，UI 却只显示泛化提示）。
+   * 已做空白折叠 + 长度截断（见 `MAX_SERVER_DETAIL_CHARS`），可直接展示。
+   */
+  serverDetail?: string;
   /**
    * OpenAI 兼容的 `finish_reason`（如 `stop` / `length` / `content_filter`）。
    * 后端未提供时为 undefined；用于区分「正常结束」与「被输出上限截断」。

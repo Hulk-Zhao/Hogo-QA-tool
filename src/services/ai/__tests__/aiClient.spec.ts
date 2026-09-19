@@ -13,9 +13,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   ANALYSIS_TIMEOUT_MS,
+  MAX_SERVER_DETAIL_CHARS,
   PROBE_TIMEOUT_MS,
   chatCompletionsUrl,
   chatCompletion,
+  extractServerDetail,
   modelsUrl,
   normalizeBaseUrl,
   probeAi,
@@ -470,5 +472,110 @@ describe('reasoning_effort：条件发送 + 4xx 去掉重试一次（disableThin
     expect(resp.ok).toBe(false);
     expect(resp.errorCode).toBe('content');
     expect((fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls.length).toBe(2);
+  });
+});
+
+/**
+ * 用户报障回归：UI 只说「请求内容被服务端拒绝，请检查模型名与参数。（HTTP 400）」——
+ * 看不到服务端到底说了什么，无法自助排查。
+ *
+ * 实测复现（本机 Ollama v0.32.7 + 空模型名）：
+ *   请求体 {"model":"", ...} → 400 {"error":{"message":"model is required"}}
+ * 而旧实现把响应体读出来后**只用于判断要不要拼「（HTTP 400）」**，原文被丢弃。
+ *
+ * 证伪立场（每一条都写明「改回错的必然变红」）：
+ * - 删掉 errorMessage 里的 serverDetail 拼接 → 「400 含服务端原文」变红；
+ * - 删掉 serverDetail 字段 → 前三条变红；
+ * - 删掉空白折叠或截断 → 「非 JSON 错误体」变红；
+ * - 删掉空模型名前置拦截 → 「空模型名本地拦截」变红（会真的发请求）；
+ * - 删掉 probeAi 的模型名校验 → 「NOT_CONFIGURED」变红（会误报 AI 模式可用）。
+ */
+describe('HTTP 非 2xx：服务端原文必须透出 + 空模型名必须前置拦截', () => {
+  /** 本机 Ollama v0.32.7 对空模型名的真实响应体（HTTP 实测）。 */
+  const OLLAMA_400_BODY =
+    '{"error":{"message":"model is required","type":"invalid_request_error","param":null,"code":null}}';
+
+  it('400 → errorMessage 含服务端原文，serverDetail 保留原句（旧实现丢弃原文）', async () => {
+    const fetchImpl: FetchLike = vi.fn(async () => jsonResponse(JSON.parse(OLLAMA_400_BODY), 400));
+    const resp = await chatCompletion(CONFIG, [{ role: 'user', content: 'hi' }], {}, fetchImpl);
+
+    expect(resp.ok).toBe(false);
+    expect(resp.serverDetail).toBe('model is required');
+    expect(resp.errorMessage).toContain('model is required');
+    expect(resp.errorMessage).toContain('400');
+    expect(resp.httpStatus).toBe(400);
+  });
+
+  it('非 JSON 错误体（HTML / 纯文本）→ 折叠为单行并截断，不把整页塞进 UI', async () => {
+    const raw = '<html>\n  <body>   502 Bad Gateway  </body>\n</html>' + 'x'.repeat(400);
+    const fetchImpl: FetchLike = vi.fn(async () => ({
+      ok: false,
+      status: 503,
+      json: async () => ({}),
+      text: async () => raw,
+    }));
+    const resp = await chatCompletion(CONFIG, [{ role: 'user', content: 'hi' }], {}, fetchImpl);
+
+    expect(resp.serverDetail).toBeTruthy();
+    expect(resp.serverDetail).not.toContain('\n');
+    expect((resp.serverDetail ?? '').length).toBeLessThanOrEqual(MAX_SERVER_DETAIL_CHARS + 1);
+    expect((resp.serverDetail ?? '').startsWith('<html>')).toBe(true);
+  });
+
+  it('extractServerDetail：兼容 {error:"文本"} / {message} / 空串', () => {
+    expect(extractServerDetail('{"error":"bad key"}')).toBe('bad key');
+    expect(extractServerDetail('{"message":"上下文超限"}')).toBe('上下文超限');
+    expect(extractServerDetail('   ')).toBe('');
+    expect(extractServerDetail('')).toBe('');
+  });
+
+  it('200 成功 → 不带 serverDetail（UI 不会误渲染「服务端原文」行）', async () => {
+    const fetchImpl: FetchLike = vi.fn(async () =>
+      jsonResponse({ choices: [{ message: { content: 'ok' } }] }),
+    );
+    const resp = await chatCompletion(CONFIG, [{ role: 'user', content: 'hi' }], {}, fetchImpl);
+
+    expect(resp.ok).toBe(true);
+    expect(resp.serverDetail).toBeUndefined();
+  });
+
+  it('空模型名 → 本地拦截：一个请求都不发，且文案点明是「模型名」的问题', async () => {
+    const fetchImpl = vi.fn(async () =>
+      jsonResponse({}, 200),
+    ) as unknown as FetchLike & ReturnType<typeof vi.fn>;
+    const resp = await chatCompletion(
+      { ...CONFIG, model: '' },
+      [{ role: 'user', content: 'hi' }],
+      {},
+      fetchImpl,
+    );
+
+    expect(resp.ok).toBe(false);
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(resp.errorMessage).toContain('模型名');
+    expect(resp.errorMessage).toContain('400');
+    expect(resp.httpStatus).toBeUndefined();
+  });
+
+  it('probeAi：Base URL 可达但模型名为空 → NOT_CONFIGURED（不发请求、不误报 AI 模式）', async () => {
+    const fetchImpl = vi.fn(async () =>
+      jsonResponse({ data: [{ id: 'qwen3.5:9b' }] }),
+    ) as unknown as FetchLike & ReturnType<typeof vi.fn>;
+    const result = await probeAi({ ...CONFIG, model: '   ' }, {}, fetchImpl);
+
+    expect(result.mode).toBe('offline');
+    expect(result.reason).toBe('NOT_CONFIGURED');
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(result.message).toContain('模型名');
+  });
+
+  it('probeAi：模型名非空时行为不变（仍按 /models 判定 AI 模式）', async () => {
+    const fetchImpl = vi.fn(async () =>
+      jsonResponse({ data: [{ id: 'qwen3.5:9b' }] }),
+    ) as unknown as FetchLike & ReturnType<typeof vi.fn>;
+    const result = await probeAi(CONFIG, {}, fetchImpl);
+
+    expect(result.mode).toBe('ai');
+    expect(fetchImpl).toHaveBeenCalled();
   });
 });

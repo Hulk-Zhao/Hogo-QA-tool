@@ -1,0 +1,49 @@
+{
+  "steps": [
+    "OK: 应用加载",
+    "OK: 导入页",
+    "OK: 文件输入就绪",
+    "OK: 解析完成",
+    "OK: 导入完成",
+    "OK: 柏拉图独立页",
+    "OK: 裁图 E:/tools/Hogo-QA-tool/.probe/shot-pareto-page.png",
+    "OK: 报表页",
+    "OK: 图表区出现",
+    "OK: 三张图就绪",
+    "OK: 裁图 E:/tools/Hogo-QA-tool/.probe/shot-rp-control.png",
+    "OK: 裁图 E:/tools/Hogo-QA-tool/.probe/shot-rp-pareto.png",
+    "OK: 裁图 E:/tools/Hogo-QA-tool/.probe/shot-rp-capability.png"
+  ],
+  "measurements": {
+    "paretoPage": [
+      {
+        "w": 1091,
+        "h": 400,
+        "ink": 0.2189
+      }
+    ],
+    "reportCharts": [
+      {
+        "w": 1091,
+        "h": 300,
+        "ink": 0.6599
+      },
+      {
+        "w": 1091,
+        "h": 210,
+        "ink": 0.0777
+      },
+      {
+        "w": 1091,
+        "h": 320,
+        "ink": 0.2106
+      },
+      {
+        "w": 1091,
+        "h": 320,
+        "ink": 0.5324
+      }
+    ]
+  },
+  "ok": true
+}

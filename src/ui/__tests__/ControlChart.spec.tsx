@@ -190,7 +190,7 @@ describe('ReportPage —— 报表导出页', () => {
     expect(screen.getByText('尚无可导出的数据')).toBeInTheDocument();
   });
 
-  it('渲染导出按钮与图像勾选项', () => {
+  it('渲染导出按钮与 7 项导出范围勾选', () => {
     render(
       <MemoryRouter>
         <ReportPage />
@@ -199,7 +199,10 @@ describe('ReportPage —— 报表导出页', () => {
     expect(screen.getByTestId('report-page')).toBeInTheDocument();
     expect(screen.getByTestId('export-excel')).toBeInTheDocument();
     expect(screen.getByTestId('print-report')).toBeInTheDocument();
-    expect(screen.getByTestId('include-chart-images')).toBeInTheDocument();
+    // 7 项 = 4 表 + 3 图（第五轮需求 #11：图表必须真的能勾选并作用于输出）。
+    expect(screen.getByTestId('report-export-options')).toBeInTheDocument();
+    const boxes = within(screen.getByTestId('report-export-options')).getAllByRole('checkbox');
+    expect(boxes).toHaveLength(7);
   });
 
   it('点击「导出 Excel」不抛异常', () => {

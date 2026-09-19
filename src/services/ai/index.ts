@@ -46,3 +46,11 @@ export {
   USAGE_SCOPE_LABEL,
   type AiUsageEntry,
 } from './usageLog';
+
+export {
+  buildFullDiagnosisRecord,
+  buildDiagnosisMarkdown,
+  diagnosisFileName,
+  sanitizeFullDiagnosis,
+  type FullDiagnosisRecord,
+} from './diagnosisReport';

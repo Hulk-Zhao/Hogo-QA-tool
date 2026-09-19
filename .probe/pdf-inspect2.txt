@@ -1,0 +1,4 @@
+diag.pdf pages=3
+  page 1: images=0 text: 一键质量日报导出 | 报表数据规模 | 特性数 | 2 | 测量值 | 120 | 不良类型 | 5 | Hogo-QA-tool | | | 未命名项目 | 离线模式
+  page 2: images=2 text: 图表 | 控制图 | 柏拉图（80% 分界线）
+  page 3: images=2 text: 能力图（直方图 + USL/LSL）

@@ -1,0 +1,37 @@
+{
+  "steps": [
+    "OK: 离线包加载",
+    "OK: 导入页",
+    "OK: 粘贴框",
+    "OK: 解析完成",
+    "OK: 导入完成",
+    "OK: 报表页"
+  ],
+  "checks": {
+    "protocol": "file:",
+    "hasExportOptions": true,
+    "exportOptionCount": 7,
+    "hasChartArea": true,
+    "canvasCount": 3,
+    "sectionTitles": [
+      "Hogo-QA-tool",
+      "质量分析",
+      "一键质量日报导出",
+      "导出范围（勾选状态自动保存，刷新后保持）",
+      "报表数据规模",
+      "3",
+      "150",
+      "0",
+      "CPK 汇总预览（sheet 1）",
+      "不良统计预览（sheet 2）",
+      "图表",
+      "控制图",
+      "柏拉图（80% 分界线）",
+      "能力图（直方图 + USL/LSL）",
+      "原始尺寸预览（sheet 3）",
+      "原始不良预览（sheet 4）"
+    ],
+    "pdfBytes": 211100
+  },
+  "ok": true
+}

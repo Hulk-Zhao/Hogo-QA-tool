@@ -13,6 +13,7 @@ import { ThemeProvider } from '@mui/material';
 import { theme } from '@/theme';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useProjectStore } from '@/store/projectStore';
+import { useDiagnosisStore } from '@/store/diagnosisStore';
 import type { Dataset } from '@/data/schema';
 import AiAssistantPage from '@/ui/pages/AiAssistantPage';
 
@@ -65,6 +66,9 @@ describe('AiAssistantPage', () => {
   beforeEach(() => {
     useSettingsStore.getState().resetMode();
     useProjectStore.getState().clearDataset();
+    // 第五轮新增：诊断结果与审计日志均为跨用例共享的 store 状态，需显式归零。
+    useProjectStore.setState({ aiUsageLogs: [], project: null });
+    useDiagnosisStore.getState().clearFullDiagnosis();
   });
 
   afterEach(() => {
@@ -236,5 +240,266 @@ describe('AiAssistantPage', () => {
     });
     // 断言来自 errorMessage 的「正文被截断」文案（而非页面里那句静态括号说明）。
     expect(screen.getByText(/正文被截断/)).toBeInTheDocument();
+  });
+});
+
+/**
+ * 第五轮 P0 修复 #12：AI 全面诊断（一键生成 + 导出 + 结果持久化）。
+ *
+ * 证伪立场：
+ * - 若删掉 QUICK_ACTIONS 里的 fullDiagnosis 项 → 「按钮存在」用例变红；
+ * - 若只在组件里 setState 而不写 diagnosisStore → 「写入 store / 预置记录即渲染」变红；
+ * - 若丢掉 `appendAiUsageLog` → 「审计写入」用例变红（这正是设置页审计表永远为空的根因）。
+ */
+describe('AiAssistantPage —— AI 全面诊断（#12）', () => {
+  // 本 describe 与上层 describe 平级，**不会**继承它的 beforeEach，必须自己归零，
+  // 否则会读到上一个 describe 遗留的 dataset / 审计日志（曾因此出现「长度 3」假失败）。
+  beforeEach(() => {
+    useSettingsStore.getState().resetMode();
+    useProjectStore.getState().clearDataset();
+    useProjectStore.setState({ aiUsageLogs: [], project: null });
+    useDiagnosisStore.getState().clearFullDiagnosis();
+  });
+
+  const DIAGNOSIS_TEXT = '## 一、总体结论\n过程整体受控，短板为转轴直径。';
+
+  /** 让 chat/completions 返回一段诊断正文。 */
+  function stubDiagnosisFetch(): ReturnType<typeof vi.fn> {
+    const fetchMock = vi.fn(
+      async (_url: string, _init?: { body?: string }) => ({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          model: 'deepseek-chat',
+          choices: [{ finish_reason: 'stop', message: { content: DIAGNOSIS_TEXT } }],
+        }),
+        text: async () => '',
+      }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    return fetchMock;
+  }
+
+  it('快捷指令里有「AI 全面诊断（一键）」按钮，且无数据时禁用', () => {
+    useSettingsStore.getState().setMode('ai', '可用');
+    renderPage();
+    const btn = screen.getByTestId('ai-action-fullDiagnosis');
+    expect(btn).toBeInTheDocument();
+    expect(btn).toBeDisabled();
+  });
+
+  it('点击后：请求体任务名为「AI 全面诊断」、结果写入 store 并渲染报告卡', async () => {
+    useSettingsStore.getState().setMode('ai', '可用');
+    useSettingsStore.getState().setAiConfig({
+      baseUrl: 'http://127.0.0.1:11434/v1',
+      apiKey: '',
+      model: 'deepseek-chat',
+      maxTokens: 8192,
+    });
+    useProjectStore.getState().setDataset(makeDataset());
+    const fetchMock = stubDiagnosisFetch();
+
+    renderPage();
+    fireEvent.click(screen.getByTestId('ai-action-fullDiagnosis'));
+
+    // 1) 线上真的发出了一次请求，且任务名同步到位（FEATURE_LABEL 未漏配）。
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalled();
+    });
+    const chatCall = fetchMock.mock.calls.find((c) => String(c[0]).includes('/chat/completions')) as
+      | [string, { body: string }]
+      | undefined;
+    expect(chatCall).toBeTruthy();
+    expect(chatCall![1].body).toContain('AI 全面诊断');
+    expect(chatCall![1].body).not.toContain('undefined');
+
+    // 2) 结果写进持久化 store（而不是组件 state）。
+    await waitFor(() => {
+      expect(useDiagnosisStore.getState().fullDiagnosis).not.toBeNull();
+    });
+    expect(useDiagnosisStore.getState().fullDiagnosis?.content).toContain('过程整体受控');
+    expect(useDiagnosisStore.getState().fullDiagnosis?.model).toBe('deepseek-chat');
+    expect(useDiagnosisStore.getState().fullDiagnosis?.scope).toBe('summary');
+    expect(useDiagnosisStore.getState().fullDiagnosis?.characteristicCount).toBe(1);
+
+    // 3) 报告卡与导出入口渲染出来。
+    expect(screen.getByTestId('ai-full-diagnosis')).toBeInTheDocument();
+    expect(screen.getByTestId('diagnosis-content').textContent).toContain('过程整体受控');
+    expect(screen.getByTestId('diagnosis-export')).toBeInTheDocument();
+    expect(screen.getByTestId('diagnosis-model-chip').textContent).toContain('deepseek-chat');
+  });
+
+  it('已有持久化诊断 → 重新进入页面直接展示（不依赖上一次的组件 state）', () => {
+    useSettingsStore.getState().setMode('ai', '可用');
+    useProjectStore.getState().setDataset(makeDataset());
+    // 模拟「上一次会话已保存报告，本次刷新后重新进入」。
+    useDiagnosisStore.getState().setFullDiagnosis({
+      id: 'diag-x',
+      content: '# 上次会话保存的诊断',
+      generatedAt: '2026-09-19T01:00:00.000Z',
+      model: 'qwen3-max',
+      scope: 'summary',
+      sentFields: ['projectName'],
+      projectName: '质量日报',
+      characteristicCount: 2,
+    });
+
+    renderPage();
+
+    expect(screen.getByTestId('ai-full-diagnosis')).toBeInTheDocument();
+    expect(screen.getByTestId('diagnosis-content').textContent).toContain('上次会话保存的诊断');
+  });
+
+  it('点击「清除」→ 报告卡消失且 store 归零', () => {
+    useSettingsStore.getState().setMode('ai', '可用');
+    useProjectStore.getState().setDataset(makeDataset());
+    useDiagnosisStore.getState().setFullDiagnosis({
+      id: 'diag-y',
+      content: '# 待清除',
+      generatedAt: '2026-09-19T01:00:00.000Z',
+      model: 'm',
+      scope: 'summary',
+      sentFields: [],
+      projectName: 'p',
+      characteristicCount: 1,
+    });
+
+    renderPage();
+    fireEvent.click(screen.getByTestId('diagnosis-clear'));
+
+    expect(useDiagnosisStore.getState().fullDiagnosis).toBeNull();
+    expect(screen.queryByTestId('ai-full-diagnosis')).not.toBeInTheDocument();
+  });
+
+  it('每次请求都写入 AI 使用审计（设置页审计表不再永远为空）', async () => {
+    useSettingsStore.getState().setMode('ai', '可用');
+    useSettingsStore.getState().setAiConfig({
+      baseUrl: 'http://127.0.0.1:11434/v1',
+      apiKey: '',
+      model: 'deepseek-chat',
+      maxTokens: 4096,
+    });
+    useProjectStore.getState().setDataset(makeDataset());
+    stubDiagnosisFetch();
+
+    renderPage();
+    fireEvent.click(screen.getByTestId('ai-action-capExplain'));
+
+    await waitFor(() => {
+      expect(useProjectStore.getState().aiUsageLogs).toHaveLength(1);
+    });
+    const log = useProjectStore.getState().aiUsageLogs[0];
+    expect(log.feature).toBe('capExplain');
+    expect(log.sentPayloadScope).toBe('summary');
+    expect(log.ok).toBe(true);
+    expect(log.model).toBe('deepseek-chat');
+    // 同时镜像进 project 实体（随项目落盘）。
+    expect(useProjectStore.getState().project?.aiUsageLogs).toHaveLength(1);
+  });
+
+  it('请求失败时不把错误当成「诊断报告」持久化', async () => {
+    useSettingsStore.getState().setMode('ai', '可用');
+    useSettingsStore.getState().setAiConfig({
+      baseUrl: 'http://127.0.0.1:11434/v1',
+      apiKey: '',
+      model: 'deepseek-chat',
+      maxTokens: 4096,
+    });
+    useProjectStore.getState().setDataset(makeDataset());
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: false,
+        status: 500,
+        json: async () => ({ error: { message: '服务器内部错误' } }),
+        text: async () => '服务器内部错误',
+      })),
+    );
+
+    renderPage();
+    fireEvent.click(screen.getByTestId('ai-action-fullDiagnosis'));
+
+    await waitFor(() => {
+      expect(useProjectStore.getState().aiUsageLogs).toHaveLength(1);
+    });
+    expect(useProjectStore.getState().aiUsageLogs[0].ok).toBe(false);
+    expect(useDiagnosisStore.getState().fullDiagnosis).toBeNull();
+    expect(screen.queryByTestId('ai-full-diagnosis')).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * 用户报障回归（UI 面）：「HTTP 400 却看不出原因」。
+ *
+ * 证伪立场：
+ * - 删掉气泡里的 `ai-server-detail` 渲染 → 用例 2 变红；
+ * - 删掉 ChatEntry.serverDetail 的写入 → 用例 2 变红；
+ * - 删掉 chatCompletion 的空模型名前置拦截 → 用例 1 变红（会真的发请求）。
+ */
+describe('AiAssistantPage —— 服务端错误原文可见（HTTP 400 报障回归）', () => {
+  beforeEach(() => {
+    useSettingsStore.getState().resetMode();
+    useProjectStore.getState().clearDataset();
+    useProjectStore.setState({ aiUsageLogs: [], project: null });
+    useDiagnosisStore.getState().clearFullDiagnosis();
+  });
+
+  it('模型名为空 → 一个网络请求都不发，气泡直接点明「模型名」', async () => {
+    useSettingsStore.getState().setMode('ai', '可用');
+    useSettingsStore.getState().setAiConfig({
+      baseUrl: 'http://127.0.0.1:11434/v1',
+      apiKey: '',
+      model: '',
+      maxTokens: 4096,
+    });
+    useProjectStore.getState().setDataset(makeDataset());
+
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ choices: [{ message: { content: 'ok' } }] }),
+      text: async () => '',
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderPage();
+    fireEvent.click(screen.getByTestId('ai-action-chartExplain'));
+
+    await waitFor(() => {
+      expect(screen.getByText(/未配置「模型名」/)).toBeInTheDocument();
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('ai-server-detail')).not.toBeInTheDocument();
+  });
+
+  it('服务端 400 且带错误原文 → 气泡单独展示「服务端原文」（旧实现只给泛化文案）', async () => {
+    useSettingsStore.getState().setMode('ai', '可用');
+    useSettingsStore.getState().setAiConfig({
+      baseUrl: 'http://127.0.0.1:11434/v1',
+      apiKey: '',
+      model: 'qwen3.5:9b',
+      maxTokens: 4096,
+    });
+    useProjectStore.getState().setDataset(makeDataset());
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: false,
+        status: 400,
+        json: async () => ({ error: { message: 'model is required' } }),
+        text: async () => '{"error":{"message":"model is required"}}',
+      })),
+    );
+
+    renderPage();
+    fireEvent.click(screen.getByTestId('ai-action-chartExplain'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('ai-server-detail')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('ai-server-detail').textContent).toContain('model is required');
+    // 泛化文案仍在，但不再「只有」泛化文案。
+    expect(screen.getByText(/请检查模型名与参数/)).toBeInTheDocument();
   });
 });

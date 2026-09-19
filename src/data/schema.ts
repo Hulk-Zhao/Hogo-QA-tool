@@ -109,7 +109,8 @@ export interface AnalysisConfig {
 export interface AiUsageLog {
   id: string;
   projectId: string;
-  feature: 'chartExplain' | 'capExplain' | 'suggest' | 'report' | 'qa';
+  /** 与 `services/ai/types.AiFeature` 对齐；新增功能必须同步此处。 */
+  feature: 'chartExplain' | 'capExplain' | 'suggest' | 'report' | 'qa' | 'fullDiagnosis';
   sentPayloadScope: 'summary' | 'raw';
   model: string;
   requestedAt: string;

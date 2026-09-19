@@ -4,7 +4,7 @@ import { BrowserRouter, HashRouter } from 'react-router-dom';
 import App from './App';
 import './index.css';
 import './print.css';
-import { bootstrapAiSettings } from './ui/bootstrap/settingsBootstrap';
+import { bootstrapSettings } from './ui/bootstrap/settingsBootstrap';
 
 const rootElement = document.getElementById('root');
 
@@ -13,13 +13,14 @@ if (!rootElement) {
 }
 
 /**
- * 应用启动接线（组合根）：在首次渲染前载入已保存的 AI 配置，
- * 并订阅配置变更自动落盘。详见 `@/ui/bootstrap/settingsBootstrap`。
+ * 应用启动接线（组合根）：在首次渲染前载入已保存的 AI 配置、
+ * 判异准则开关与报表导出范围，并订阅变更自动落盘。
+ * 详见 `@/ui/bootstrap/settingsBootstrap`。
  *
  * 放在入口而非 App 的 effect 中：恰好执行一次（不受 StrictMode 双调用影响），
  * 且保证首屏即读到已保存配置。
  */
-bootstrapAiSettings();
+bootstrapSettings();
 
 /**
  * 选择路由实现（离线可用性的关键）。

@@ -32,7 +32,6 @@ import {
 import type { ReactElement } from 'react';
 import {
   RULE_META,
-  defaultToggleConfig,
   type ChartType,
   type NelsonRuleId,
   type RuleId,
@@ -41,6 +40,7 @@ import {
 } from '@/core';
 import { useProjectStore } from '@/store/projectStore';
 import { useAnalysisStore } from '@/store/analysisStore';
+import { useSettingsStore } from '@/store/settingsStore';
 import { useControlChart, isAttributeChart } from '@/ui/hooks/useControlChart';
 import ControlChart from '@/ui/charts/ControlChart';
 import RuleViolationTable from '@/ui/charts/RuleViolationTable';
@@ -74,47 +74,31 @@ export default function ControlChartPage(): ReactElement {
   const setCapacity = useAnalysisStore((s) => s.setSubgroupCapacity);
 
   const [chartType, setChartType] = useState<ChartType>('Xbar-R');
-  const [toggles, setToggles] = useState<RuleToggleConfig>(() => defaultToggleConfig());
+  /**
+   * 判异准则开关改读 `settingsStore`（第五轮 P0 修复）：
+   * 此前是页面级 `useState`，用户改完刷新即丢；现与设置页共用同一份并落盘。
+   */
+  const toggles = useSettingsStore((s) => s.rulesConfig);
+  const setRule = useSettingsStore((s) => s.setRule);
+  const setRulesGroup = useSettingsStore((s) => s.setRulesGroup);
   const [selectedPoint, setSelectedPoint] = useState<number | null>(null);
 
   const state = useControlChart(chartType, toggles);
   const series = state.series;
 
-  /** 切换单条规则开关（即时生效）。 */
+  /**
+   * 切换单条规则开关（即时生效 + 立即落盘）。
+   *
+   * 写入 store 而非本地 state：store 的 `rulesConfig` 由 `settingsBootstrap`
+   * 订阅落盘，因此「改开关 → 刷新 → 仍在」。
+   */
   const toggleRule = (ruleId: RuleId, enabled: boolean): void => {
-    setToggles((prev) => {
-      if (ruleId.startsWith('W')) {
-        const we = { ...prev.westernElectric, [ruleId as WesternRuleId]: enabled };
-        return { ...prev, westernElectric: we };
-      }
-      const nelson = { ...prev.nelson, [ruleId as NelsonRuleId]: enabled };
-      return { ...prev, nelson };
-    });
+    setRule(ruleId, enabled);
   };
 
-  /** 启用/停用整个规则组。 */
+  /** 启用/停用整个规则组（写入 store，同样落盘）。 */
   const setGroupAll = (group: 'westernElectric' | 'nelson', enabled: boolean): void => {
-    setToggles((prev) => {
-      if (group === 'westernElectric') {
-        return {
-          ...prev,
-          westernElectric: { W1: enabled, W2: enabled, W3: enabled, W4: enabled },
-        };
-      }
-      return {
-        ...prev,
-        nelson: {
-          N1: enabled,
-          N2: enabled,
-          N3: enabled,
-          N4: enabled,
-          N5: enabled,
-          N6: enabled,
-          N7: enabled,
-          N8: enabled,
-        },
-      };
-    });
+    setRulesGroup(group, enabled);
   };
 
   const violations = useMemo(

@@ -14,6 +14,7 @@
 
 import { create } from 'zustand';
 import type { Characteristic, Dataset, Measurement, Project } from '@/data/schema';
+import type { AiUsageEntry } from '@/services/ai/usageLog';
 import { CURRENT_SCHEMA_VERSION } from '@/data/schema';
 
 /** 导入解析的中间行（来自文件或粘贴文本）。 */
@@ -80,8 +81,12 @@ interface ProjectState {
   dataset: Dataset | null;
   /** 当前选中的特性 id。 */
   selectedCharacteristicId: string | null;
+  /** AI 使用审计（会话内唯一真源；有 project 时同步镜像进去以便落盘）。 */
+  aiUsageLogs: AiUsageEntry[];
 
   setProjectName: (name: string) => void;
+  /** 追加一条 AI 使用审计记录（PRD P0-24）。 */
+  appendAiUsageLog: (entry: AiUsageEntry) => void;
   /** 设置整个项目实体（加载 / 导入项目包时使用）。 */
   setProject: (project: Project) => void;
   selectCharacteristic: (id: string | null) => void;
@@ -138,6 +143,7 @@ export const useProjectStore = create<ProjectState>((set) => ({
   projectName: '未命名项目',
   dataset: null,
   selectedCharacteristicId: null,
+  aiUsageLogs: [],
 
   setProjectName: (name) => set({ projectName: name }),
 
@@ -147,6 +153,35 @@ export const useProjectStore = create<ProjectState>((set) => ({
       projectName: project.name,
       dataset: project.datasets[0] ?? null,
       selectedCharacteristicId: project.datasets[0]?.characteristics[0]?.id ?? null,
+      // 载入项目时同步审计记录（避免看到上一个项目残留的日志）。
+      aiUsageLogs: project.aiUsageLogs,
+    }),
+
+  /**
+   * 追加一条 AI 使用审计记录。
+   *
+   * 背景（本轮发现的第二处「接线类缺陷」）：`buildUsageEntry` 早已实现并在
+   * AI 助手中被调用，但**返回值被直接丢弃**，从未写入任何地方 —— 于是设置页的
+   * 「AI 使用审计」表永远是空的，PRD P0-24 的数据主权承诺在 UI 上不可验证。
+   *
+   * 本动作同时更新切片与 `project.aiUsageLogs`：前者驱动 UI，后者随项目落盘；
+   * `project` 为 null（未建项目）时只更新切片，不阻断 AI 请求。
+   */
+  appendAiUsageLog: (entry) =>
+    set((s) => {
+      const aiUsageLogs = [...s.aiUsageLogs, entry];
+      const current = s.project;
+      if (!current) {
+        return { aiUsageLogs };
+      }
+      return {
+        aiUsageLogs,
+        project: {
+          ...current,
+          aiUsageLogs: aiUsageLogs.map((log) => ({ ...log, projectId: current.id })),
+          updatedAt: new Date().toISOString(),
+        },
+      };
     }),
 
   selectCharacteristic: (id) => set({ selectedCharacteristicId: id }),

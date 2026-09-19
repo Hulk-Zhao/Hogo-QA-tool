@@ -1,0 +1,57 @@
+{
+  "model": "",
+  "steps": [
+    "OK: vite preview 8787",
+    "OK: real Ollama 11434",
+    "OK: app loaded",
+    "OK: import page",
+    "OK: paste input",
+    "OK: confirm enabled",
+    "OK: imported",
+    "OK: settings page",
+    "OK: mode chip = AI 模式",
+    "OK: ai page",
+    "OK: fullDiagnosis clickable"
+  ],
+  "checks": {
+    "ariaLabels": [
+      "Base URL",
+      "API Key",
+      "模型名",
+      "最大输出 tokens",
+      "关闭模型思考",
+      "允许发送原始数据",
+      "W1 1点超3σ",
+      "W2 9点同侧",
+      "W3 6点递增/递减",
+      "W4 14点交替",
+      "N1 1点超3σ",
+      "N2 9点同侧",
+      "N3 6点递增/递减",
+      "N4 14点交替",
+      "N5 3点中2点在A区",
+      "N6 5点中4点在B区外",
+      "N7 15点在C区",
+      "N8 8点在C区外"
+    ],
+    "settingsRaw": "{\"baseUrl\":\"http://127.0.0.1:11434/v1\",\"apiKey\":\"\",\"model\":\"\",\"maxTokens\":4096,\"disableThinking\":true,\"allowRawData\":false}",
+    "modeChipText": "AI 模式",
+    "gateDisabled": false,
+    "conversationText": "我\nAI 全面诊断（一键）\nAI 助手\n已发送：仅摘要\n复制\n请求内容被服务端拒绝，请检查模型名与参数。（HTTP 400）\n发送字段：projectName、characteristicCount、totalMeasurements、characteristics",
+    "hasDiagnosisCard": false,
+    "netRequestPostData": [
+      null,
+      "{\"model\":\"\",\"messages\":[{\"role\":\"system\",\"content\":\"你是资深制造业质量总监，负责出具一份可直接交付给管理层/客户的**全面质量诊断报告**。基于给出的项目统计摘要（各特性 n / 均值 / 双口径 σ / Ca / Cp / Cpk / Pp / Ppk / 双西格玛水平 / PPM / 告警），输出中文 Markdown 报告，必须且仅包含以下五节，标题与顺序固定：## 一、总体结论（一句话给出项目整体质量状态与最需关注的特性，必须点名具体特性名）；## 二、过程能力盘点（逐特性给出 Cpk/Ppk 与 1.33 合格、1.67 优秀门槛的对照结论，明确短板特性）；## 三、主要问题与疑似根因（按影响从大到小排序，每条注明所依据的统计量）；## 四、改善行动（不超过 5 条，按优先级排序，每条给出责任方向：设备/工艺/材料/测量，并给出验证方式）；## 五、数据局限与风险提示（说明样本量、非正态、单侧规格等因素对结论的影响）。硬约束：只能使用给定摘要中的数据，**不得臆造任何数值**；摘要未提供的数据一律写「摘要未提供」；不发送也不需要原始测量明细。\"},{\"role\":\"user\",\"content\":\"【任务】AI 全面诊断\\n【统计摘要（JSON）】\\n{\\n  \\\"projectName\\\": \\\"未命名项目\\\",\\n  \\\"characteristicCount\\\": 1,\\n  \\\"totalMeasurements\\\": 60,\\n  \\\"characteristics\\\": [\\n    {\\n      \\\"characteristicName\\\": \\\"外壳长度\\\",\\n      \\\"n\\\": 60,\\n      \\\"mean\\\": 50.00118499999999,\\n      \\\"sigmaWithin\\\": 0.018146316996274607,\\n      \\\"sigmaOverall\\\": 0.021124504406983827,\\n      \\\"ca\\\": 0.005924999999962126,\\n      \\\"cp\\\": 3.6738400789732766,\\n      \\\"cpk\\\": 3.652072576505499,\\n      \\\"pp\\\": 3.1558925777509557,\\n      \\\"ppk\\\": 3.1371939142279004,\\n      \\\"sigmaLevelShort\\\": 10.956217729516496,\\n      \\\"sigmaLevelBench\\\": 12.456217729516496,\\n      \\\"ppmOverall\\\": 0,\\n      \\\"ppmWithin\\\": 0,\\n      \\\"warnings\\\": [],\\n      \\\"spec\\\": {\\n        \\\"usl\\\": 50.2,\\n        \\\"lsl\\\": 49.8,\\n        \\\"target\\\": null,\\n        \\\"unit\\\": \\\"\\\"\\n      }\\n    }\\n  ]\\n}\"}],\"temperature\":0.2,\"max_tokens\":4096,\"stream\":false,\"reasoning_effort\":\"none\"}",
+      "{\"model\":\"\",\"messages\":[{\"role\":\"system\",\"content\":\"你是资深制造业质量总监，负责出具一份可直接交付给管理层/客户的**全面质量诊断报告**。基于给出的项目统计摘要（各特性 n / 均值 / 双口径 σ / Ca / Cp / Cpk / Pp / Ppk / 双西格玛水平 / PPM / 告警），输出中文 Markdown 报告，必须且仅包含以下五节，标题与顺序固定：## 一、总体结论（一句话给出项目整体质量状态与最需关注的特性，必须点名具体特性名）；## 二、过程能力盘点（逐特性给出 Cpk/Ppk 与 1.33 合格、1.67 优秀门槛的对照结论，明确短板特性）；## 三、主要问题与疑似根因（按影响从大到小排序，每条注明所依据的统计量）；## 四、改善行动（不超过 5 条，按优先级排序，每条给出责任方向：设备/工艺/材料/测量，并给出验证方式）；## 五、数据局限与风险提示（说明样本量、非正态、单侧规格等因素对结论的影响）。硬约束：只能使用给定摘要中的数据，**不得臆造任何数值**；摘要未提供的数据一律写「摘要未提供」；不发送也不需要原始测量明细。\"},{\"role\":\"user\",\"content\":\"【任务】AI 全面诊断\\n【统计摘要（JSON）】\\n{\\n  \\\"projectName\\\": \\\"未命名项目\\\",\\n  \\\"characteristicCount\\\": 1,\\n  \\\"totalMeasurements\\\": 60,\\n  \\\"characteristics\\\": [\\n    {\\n      \\\"characteristicName\\\": \\\"外壳长度\\\",\\n      \\\"n\\\": 60,\\n      \\\"mean\\\": 50.00118499999999,\\n      \\\"sigmaWithin\\\": 0.018146316996274607,\\n      \\\"sigmaOverall\\\": 0.021124504406983827,\\n      \\\"ca\\\": 0.005924999999962126,\\n      \\\"cp\\\": 3.6738400789732766,\\n      \\\"cpk\\\": 3.652072576505499,\\n      \\\"pp\\\": 3.1558925777509557,\\n      \\\"ppk\\\": 3.1371939142279004,\\n      \\\"sigmaLevelShort\\\": 10.956217729516496,\\n      \\\"sigmaLevelBench\\\": 12.456217729516496,\\n      \\\"ppmOverall\\\": 0,\\n      \\\"ppmWithin\\\": 0,\\n      \\\"warnings\\\": [],\\n      \\\"spec\\\": {\\n        \\\"usl\\\": 50.2,\\n        \\\"lsl\\\": 49.8,\\n        \\\"target\\\": null,\\n        \\\"unit\\\": \\\"\\\"\\n      }\\n    }\\n  ]\\n}\"}],\"temperature\":0.2,\"max_tokens\":4096,\"stream\":false}"
+    ],
+    "netResponseStatus": [
+      204,
+      400,
+      400
+    ],
+    "serverResponseBody": "{\"error\":{\"message\":\"model is required\",\"type\":\"invalid_request_error\",\"param\":null,\"code\":null}}\n"
+  },
+  "pageErrors": [],
+  "consoleErrors": [],
+  "ok": true
+}
