@@ -6,7 +6,7 @@
  * 本文件锁定「状态住在 store、与组件生命周期解耦」这一契约。
  */
 import { beforeEach, describe, expect, it } from 'vitest';
-import { nextEntryId, useAiChatStore, type ChatEntry } from '@/store/aiChatStore';
+import { formatTranscript, nextEntryId, useAiChatStore, type ChatEntry } from '@/store/aiChatStore';
 
 function entry(id: string, text: string): ChatEntry {
   return { id, role: 'user', text };
@@ -45,6 +45,18 @@ describe('aiChatStore', () => {
     expect(after.question).toBe('这批数据受控吗？');
     expect(after.allowRaw).toBe(true);
     expect(after.loading).toBe(true);
+  });
+
+  it('formatTranscript 拼出可粘贴的纯文本：带角色前缀、逐条不漏、条目之间空行', () => {
+    const entries: ChatEntry[] = [
+      { id: 'u1', role: 'user', text: '这批数据受控吗？' },
+      { id: 'a1', role: 'assistant', text: '过程受控。\n无判异点。' },
+    ];
+    expect(formatTranscript(entries)).toBe('我：这批数据受控吗？\n\nAI 助手：过程受控。\n无判异点。');
+  });
+
+  it('formatTranscript 对空会话返回空串（不产生孤零零的换行）', () => {
+    expect(formatTranscript([])).toBe('');
   });
 
   it('clearChat 同时清空记录、输入框与在途标记', () => {

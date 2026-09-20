@@ -23,7 +23,7 @@
  * 离线模式：整页显示离线提示（见文件末尾 `AiAssistantPage`），不渲染助手 UI。
  */
 
-import { useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Box,
@@ -33,6 +33,7 @@ import {
   Chip,
   Divider,
   FormControlLabel,
+  IconButton,
   Stack,
   Switch,
   TextField,
@@ -42,6 +43,7 @@ import {
   SmartToy as SmartToyIcon,
   Send as SendIcon,
   ContentCopy as CopyIcon,
+  Add as AddIcon,
 } from '@mui/icons-material';
 import type { ReactElement } from 'react';
 import { buildCapabilitySummary, buildSubgroups, computeCapability } from '@/core';
@@ -63,12 +65,13 @@ import { downloadBlob } from '@/services/report';
 import { buildReportModel } from '@/data/exporter/reportModel';
 import { useProjectStore } from '@/store/projectStore';
 import { useDiagnosisStore } from '@/store/diagnosisStore';
-import { nextEntryId, useAiChatStore, type ChatEntry } from '@/store/aiChatStore';
+import { formatTranscript, nextEntryId, useAiChatStore, type ChatEntry } from '@/store/aiChatStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useUiStore } from '@/store/uiStore';
 import EmptyState from '@/ui/components/EmptyState';
 import ConfirmDialog from '@/ui/components/ConfirmDialog';
 import { writeClipboard } from '@/ui/clipboard';
+import { isNearBottom, scrollToBottom } from '@/ui/chatScroll';
 
 /** 快捷功能定义。 */
 interface QuickAction {
@@ -80,6 +83,8 @@ interface QuickAction {
   placeholder?: string;
 }
 
+/** 「复制整段对话」在 copiedId 里的占位值（与逐条复制共用同一份状态）。 */
+const COPY_TRANSCRIPT_ID = '__transcript__';
 const QUICK_ACTIONS: QuickAction[] = [
   { feature: 'fullDiagnosis', label: 'AI 全面诊断（一键）', needsAnalysis: true },
   { feature: 'chartExplain', label: '解读当前控制图', needsAnalysis: true },
@@ -171,9 +176,65 @@ function AiAssistantContent(): ReactElement {
   const appendEntry = useAiChatStore((s) => s.appendEntry);
   const clearChat = useAiChatStore((s) => s.clearChat);
   const [pendingRaw, setPendingRaw] = useState<AiFeature | null>(null);
+
+  /**
+   * 「+」工具面板（快捷指令 / 数据主权 / 诊断报告）是否展开。
+   *
+   * 默认收起：用户要的是「只保留对话」—— 打开页面看到的就是对话本身，
+   * 其余控件收在底部输入栏左侧的「+」里（微信的「+」面板正是这个位置）。
+   * 刻意用组件 state 而非 store：每次重新进入页面都从「收起」开始。
+   */
+  const [toolsOpen, setToolsOpen] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [diagnosisCopied, setDiagnosisCopied] = useState(false);
   const lastRequest = useRef<{ feature: AiFeature; note: string } | null>(null);
+
+  // —— 微信式会话视窗（P7）——
+  /** 会话滚动容器。 */
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  /**
+   * 当前是否处于「贴底」状态。
+   *
+   * 用 ref 而不是 state：滚动是高频事件，「滚动 → setState → 重渲染 → 再滚动」
+   * 会抖动。它只影响「要不要自动跟随」这一个副作用，不需要参与渲染。
+   */
+  const stickToBottom = useRef(true);
+
+  /** 把会话滚到最新一条。 */
+  const jumpToBottom = useCallback((): void => {
+    scrollToBottom(scrollRef.current);
+  }, []);
+
+  /**
+   * 「新消息跟随」是否已经跑过第一轮。
+   *
+   * 首次渲染的贴底由下面第一条 effect（无条件）负责，这条只管**后续**变化 ——
+   * 两条规则互不重叠，才能各自被单独证伪（否则删掉任意一条都还有另一条兜着）。
+   */
+  const followArmed = useRef(false);
+
+  // 规则 1：进入页面 / 从别的页面切回来 → 无条件贴底（「点开默认展示最底部消息」）。
+  useEffect(() => {
+    stickToBottom.current = true;
+    jumpToBottom();
+  }, [jumpToBottom]);
+
+  // 规则 2：后续的新消息 / 思考状态变化才跟随贴底，且**仅当用户本来就在底部附近**。
+  // 用户正在上翻读历史时强行贴底会把他拽回底部（微信也不这么做）。
+  useEffect(() => {
+    if (!followArmed.current) {
+      followArmed.current = true;
+      return;
+    }
+    if (stickToBottom.current) {
+      jumpToBottom();
+    }
+  }, [entries.length, loading, jumpToBottom]);
+
+  // 规则 3：用户自己滚回底部附近就恢复跟随，上拉离开就停止跟随。
+  const handleScroll = (): void => {
+    stickToBottom.current = isNearBottom(scrollRef.current);
+  };
 
   const summary = useMemo(
     () => buildSummaryForFeature(projectName, dataset),
@@ -269,7 +330,17 @@ function AiAssistantContent(): ReactElement {
     void runRequest(feature, note, false);
   };
 
-  /** 复制助手回复。 */
+  /** 提交输入框里的问题（底部输入栏的「提问」按钮与回车键共用这一条路径）。 */
+  const submitQuestion = (): void => {
+    const q = question.trim();
+    if (q.length === 0) {
+      return;
+    }
+    setQuestion('');
+    handleFeature('qa', q);
+  };
+
+  /** 复制一条消息（用户提问与 AI 回复一视同仁 —— 用户要「对话可以复制」）。 */
   const copyEntry = async (entry: ChatEntry): Promise<void> => {
     try {
       await writeClipboard(entry.text);
@@ -280,6 +351,16 @@ function AiAssistantContent(): ReactElement {
     }
   };
 
+  /** 复制整段对话（纯文本，逐条不漏；空会话时由按钮的 disabled 拦住）。 */
+  const copyTranscript = async (): Promise<void> => {
+    try {
+      await writeClipboard(formatTranscript(entries));
+      setCopiedId(COPY_TRANSCRIPT_ID);
+      setTimeout(() => setCopiedId(null), 1500);
+    } catch {
+      setCopiedId(null);
+    }
+  };
   /** 导出全面诊断报告为 .md 文件（元信息头 + AI 正文）。 */
   const exportDiagnosis = (): void => {
     if (!fullDiagnosis) {
@@ -324,249 +405,324 @@ function AiAssistantContent(): ReactElement {
   };
 
   return (
-    <Stack spacing={2.5} data-testid="ai-assistant-page">
-      <Stack direction="row" spacing={1} alignItems="center">
+    <Stack data-testid="ai-assistant-page" sx={{ height: '100%', minHeight: 0 }}>
+      {/*
+        顶栏：只放「这是一段对话」本身（条数 / 复制 / 清空）。
+        快捷指令、数据主权开关、诊断报告全部收进底部输入栏左侧的「+」面板
+        —— 用户要的是「只保留对话」。
+      */}
+      <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap sx={{ pb: 1 }}>
         <SmartToyIcon color="primary" />
         <Typography variant="h6" fontWeight={600}>
           AI 质量分析助手
         </Typography>
         <Chip size="small" label="AI 模式" color="primary" />
+        {entries.length > 0 ? (
+          <Chip size="small" variant="outlined" label={`共 ${entries.length} 条`} data-testid="ai-conversation-count" />
+        ) : null}
+        {fullDiagnosis ? (
+          <Button size="small" color="inherit" onClick={() => setToolsOpen(true)} data-testid="ai-open-diagnosis">
+            诊断报告（已保存）
+          </Button>
+        ) : null}
+        <Box sx={{ flexGrow: 1 }} />
+        <Button
+          size="small"
+          startIcon={<CopyIcon />}
+          disabled={entries.length === 0}
+          onClick={() => void copyTranscript()}
+          data-testid="ai-copy-transcript"
+        >
+          {copiedId === COPY_TRANSCRIPT_ID ? '已复制' : '复制对话'}
+        </Button>
+        <Button
+          size="small"
+          color="inherit"
+          disabled={entries.length === 0}
+          onClick={clearChat}
+          data-testid="ai-clear-chat"
+        >
+          清空对话
+        </Button>
       </Stack>
 
       {dataset === null ? (
-        <Alert severity="info">
+        <Alert severity="info" sx={{ mb: 1 }}>
           当前项目暂无数据。请先在「数据导入」页导入数据，再使用 AI 解读功能。
         </Alert>
       ) : null}
 
-      {/* 快捷指令 */}
-      <Card variant="outlined">
-        <CardContent>
-          <Typography variant="subtitle2" gutterBottom>
-            快捷指令
-          </Typography>
-          <Stack direction="row" flexWrap="wrap" gap={1}>
-            {QUICK_ACTIONS.filter((a) => a.feature !== 'qa').map((a) => (
-              <Button
-                key={a.feature}
-                variant="outlined"
-                size="small"
-                disabled={a.needsAnalysis && dataset === null}
-                onClick={() => handleFeature(a.feature)}
-                data-testid={`ai-action-${a.feature}`}
-              >
-                {a.label}
-              </Button>
-            ))}
-            <Button variant="outlined" size="small" onClick={insertReport} disabled={project === null}>
-              插入 Markdown 报告
-            </Button>
-          </Stack>
-
-          <Divider sx={{ my: 1.5 }} />
-
-          {/* 数据主权控制 */}
-          <FormControlLabel
-            control={
-              <Switch
-                size="small"
-                checked={allowRaw}
-                onChange={(e) => setAllowRaw(e.target.checked)}
-                inputProps={{ 'aria-label': '允许发送原始数据' }}
-              />
-            }
-            label="允许发送原始数据（默认仅发送统计摘要）"
+      {/*
+        会话视窗（微信式）：
+        - 固定「视口」高度（flexGrow + flexBasis:0 + minHeight），消息在内部滚动；
+        - 进入页面无条件贴底（见 jumpToBottom 的 useEffect），历史消息往上翻；
+        - 打印时取消内部滚动，否则纸上只有当前可见的那几条消息。
+      */}
+      <Box
+        ref={scrollRef}
+        onScroll={handleScroll}
+        data-testid="ai-conversation-scroll"
+        sx={{
+          flexGrow: 1,
+          flexBasis: 0,
+          minHeight: 200,
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          px: 1.5,
+          py: 1.5,
+          border: 1,
+          borderColor: 'divider',
+          borderRadius: 1,
+          bgcolor: 'action.hover',
+          '@media print': {
+            flexBasis: 'auto',
+            minHeight: 0,
+            maxHeight: 'none',
+            overflow: 'visible',
+            border: 0,
+          },
+        }}
+      >
+        {entries.length === 0 ? (
+          <EmptyState
+            title="尚未发起 AI 请求"
+            description="点开输入栏左侧的「+」选快捷指令，或直接提问。每次请求前会展示将发送的字段清单；对话记录在切换页面后仍会保留（刷新页面则清空）。"
           />
-          <Typography variant="caption" display="block" color="text.secondary">
-            勾选后每次请求仍需二次确认；默认仅发送统计摘要（数据主权 G3）。
-          </Typography>
-        </CardContent>
-      </Card>
-
-      {/* 全面诊断结果（持久化：刷新 / 切换路由 / 重挂载都不丢） */}
-      {fullDiagnosis ? (
-        <Card variant="outlined" data-testid="ai-full-diagnosis">
-          <CardContent>
-            <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-              <Typography variant="subtitle1" fontWeight={600}>
-                AI 全面诊断报告
-              </Typography>
-              <Chip
-                size="small"
-                color="primary"
-                variant="outlined"
-                label={`已保存 · ${fullDiagnosis.model || '未知模型'}`}
-                data-testid="diagnosis-model-chip"
-              />
-              <Chip
-                size="small"
-                variant="outlined"
-                color={fullDiagnosis.scope === 'raw' ? 'warning' : 'default'}
-                label={fullDiagnosis.scope === 'raw' ? '已发送：摘要 + 明细' : '已发送：仅摘要'}
-              />
-              <Box sx={{ flexGrow: 1 }} />
-              <Button size="small" startIcon={<CopyIcon />} onClick={() => void copyDiagnosis()}>
-                {diagnosisCopied ? '已复制' : '复制'}
-              </Button>
-              <Button
-                size="small"
-                variant="contained"
-                onClick={exportDiagnosis}
-                data-testid="diagnosis-export"
-              >
-                导出 Markdown
-              </Button>
-              <Button
-                size="small"
-                color="inherit"
-                onClick={clearFullDiagnosis}
-                data-testid="diagnosis-clear"
-              >
-                清除
-              </Button>
-            </Stack>
-            <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
-              生成时间：{fullDiagnosis.generatedAt || '—'} · 项目：{fullDiagnosis.projectName || '未命名项目'} ·
-              纳入特性数：{fullDiagnosis.characteristicCount}
-            </Typography>
-            <Typography
-              variant="body2"
-              component="pre"
-              sx={{
-                whiteSpace: 'pre-wrap',
-                fontFamily: 'inherit',
-                mt: 1,
-                maxHeight: 420,
-                overflow: 'auto',
-                m: 0,
-              }}
-              data-testid="diagnosis-content"
-            >
-              {fullDiagnosis.content}
-            </Typography>
-          </CardContent>
-        </Card>
-      ) : null}
-
-      {/* 数据问答 */}
-      <Card variant="outlined">
-        <CardContent>
-          <Typography variant="subtitle2" gutterBottom>
-            数据问答（仅基于统计摘要）
-          </Typography>
-          <Stack direction="row" spacing={1}>
-            <TextField
-              fullWidth
-              size="small"
-              placeholder="例如：当前哪个特性能力最差？"
-              value={question}
-              onChange={(e) => setQuestion(e.target.value)}
-              inputProps={{ 'aria-label': '数据问答输入' }}
-            />
-            <Button
-              variant="contained"
-              endIcon={<SendIcon />}
-              disabled={loading || question.trim().length === 0}
-              onClick={() => {
-                const q = question.trim();
-                if (q.length === 0) {
-                  return;
-                }
-                setQuestion('');
-                handleFeature('qa', q);
-              }}
-            >
-              提问
-            </Button>
-          </Stack>
-        </CardContent>
-      </Card>
-
-      {/* 对话记录（状态在 aiChatStore：切页不丢；因此需要一个显式的清空入口） */}
-      {entries.length === 0 ? (
-        <EmptyState
-          title="尚未发起 AI 请求"
-          description="点击上方快捷指令，或输入问题开始。每次请求前会展示将发送的字段清单。对话记录在切换页面后仍会保留（刷新页面则清空）。"
-        />
-      ) : (
-        <>
-          <Stack direction="row" alignItems="center" spacing={1}>
-            <Typography variant="subtitle2">对话记录</Typography>
-            <Chip size="small" label={'共 ' + String(entries.length) + ' 条'} data-testid="ai-conversation-count" />
-            <Box sx={{ flexGrow: 1 }} />
-            <Button size="small" color="inherit" onClick={clearChat} data-testid="ai-clear-chat">
-              清空对话
-            </Button>
-          </Stack>
+        ) : (
           <Stack spacing={1.5} data-testid="ai-conversation">
-          {entries.map((entry) => (
-            <Card
-              key={entry.id}
-              variant="outlined"
-              sx={{
-                bgcolor: entry.role === 'user' ? 'action.hover' : 'background.paper',
-                alignSelf: entry.role === 'user' ? 'flex-end' : 'flex-start',
-                maxWidth: '92%',
-              }}
-            >
-              <CardContent sx={{ py: 1.5, '&:last-child': { pb: 1.5 } }}>
-                <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
-                  <Typography variant="caption" color="text.secondary">
-                    {entry.role === 'user' ? '我' : 'AI 助手'}
-                  </Typography>
-                  {entry.scope ? (
-                    <Chip
-                      size="small"
-                      variant="outlined"
-                      color={entry.scope === 'raw' ? 'warning' : 'default'}
-                      label={entry.scope === 'raw' ? '已发送：摘要 + 明细' : '已发送：仅摘要'}
-                      data-testid="ai-scope-chip"
-                    />
-                  ) : null}
-                  {entry.role === 'assistant' ? (
+            {entries.map((entry) => (
+              <Card
+                key={entry.id}
+                variant="outlined"
+                data-testid={`ai-message-${entry.role}`}
+                sx={{
+                  alignSelf: entry.role === 'user' ? 'flex-end' : 'flex-start',
+                  maxWidth: '92%',
+                  bgcolor: entry.role === 'user' ? 'primary.main' : 'background.paper',
+                  color: entry.role === 'user' ? 'primary.contrastText' : 'text.primary',
+                  borderColor: entry.role === 'user' ? 'primary.main' : 'divider',
+                }}
+              >
+                <CardContent sx={{ py: 1.25, '&:last-child': { pb: 1.25 } }}>
+                  <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+                    <Typography variant="caption" fontWeight={600} sx={{ opacity: 0.8 }}>
+                      {entry.role === 'user' ? '我' : 'AI 助手'}
+                    </Typography>
+                    {entry.scope ? (
+                      <Chip
+                        size="small"
+                        variant="outlined"
+                        color={entry.scope === 'raw' ? 'warning' : 'default'}
+                        label={entry.scope === 'raw' ? '已发送：摘要 + 明细' : '已发送：仅摘要'}
+                        data-testid="ai-scope-chip"
+                        sx={{ borderColor: 'currentColor' }}
+                      />
+                    ) : null}
+                    <Box sx={{ flexGrow: 1 }} />
+                    {/* 每条消息都能复制（我提的问、AI 答的话一视同仁） */}
                     <Button
                       size="small"
-                      startIcon={<CopyIcon />}
+                      color="inherit"
+                      startIcon={<CopyIcon fontSize="small" />}
                       onClick={() => void copyEntry(entry)}
+                      data-testid={`ai-copy-${entry.id}`}
+                      sx={{ minWidth: 0 }}
                     >
                       {copiedId === entry.id ? '已复制' : '复制'}
                     </Button>
-                  ) : null}
-                </Stack>
-                <Typography
-                  variant="body2"
-                  component="pre"
-                  sx={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', m: 0 }}
-                >
-                  {entry.text}
-                </Typography>
-                {entry.sentFields && entry.sentFields.length > 0 ? (
-                  <Typography variant="caption" color="text.disabled" sx={{ mt: 0.5, display: 'block' }}>
-                    发送字段：{entry.sentFields.join('、')}
-                  </Typography>
-                ) : null}
-                {entry.serverDetail ? (
+                  </Stack>
                   <Typography
-                    variant="caption"
-                    color="text.secondary"
-                    sx={{ mt: 0.5, display: 'block', fontFamily: 'monospace' }}
-                    data-testid="ai-server-detail"
+                    variant="body2"
+                    component="pre"
+                    sx={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', m: 0 }}
                   >
-                    服务端原文：{entry.serverDetail}
+                    {entry.text}
                   </Typography>
-                ) : null}
-              </CardContent>
-            </Card>
-          ))}
+                  {entry.sentFields && entry.sentFields.length > 0 ? (
+                    <Typography variant="caption" sx={{ mt: 0.5, display: 'block', opacity: 0.75 }}>
+                      发送字段：{entry.sentFields.join('、')}
+                    </Typography>
+                  ) : null}
+                  {entry.serverDetail ? (
+                    <Typography
+                      variant="caption"
+                      sx={{ mt: 0.5, display: 'block', fontFamily: 'monospace', opacity: 0.9 }}
+                      data-testid="ai-server-detail"
+                    >
+                      服务端原文：{entry.serverDetail}
+                    </Typography>
+                  ) : null}
+                </CardContent>
+              </Card>
+            ))}
           </Stack>
-        </>
-      )}
+        )}
 
-      {loading ? (
-        <Typography variant="body2" color="text.secondary">
-          AI 思考中…
-        </Typography>
-      ) : null}
+        {loading ? (
+          <Typography variant="body2" color="text.secondary" data-testid="ai-thinking" sx={{ mt: 1.5 }}>
+            AI 思考中…
+          </Typography>
+        ) : null}
+      </Box>
+
+      {/*
+        底部输入栏（微信式）：钉在底部，不随对话滚走。
+        回车即发送（与「提问」按钮共用 submitQuestion）。
+      */}
+      <Stack direction="row" spacing={1} alignItems="center" sx={{ pt: 1.5 }}>
+        <IconButton
+          aria-label="更多功能（快捷指令 / 数据主权 / 诊断报告）"
+          data-testid="ai-toggle-tools"
+          aria-expanded={toolsOpen}
+          color={toolsOpen ? 'primary' : 'default'}
+          onClick={() => setToolsOpen((open) => !open)}
+          sx={{ border: 1, borderColor: 'divider' }}
+        >
+          <AddIcon />
+        </IconButton>
+        <TextField
+          fullWidth
+          size="small"
+          placeholder="例如：当前哪个特性能力最差？"
+          value={question}
+          onChange={(e) => setQuestion(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              submitQuestion();
+            }
+          }}
+          inputProps={{ 'aria-label': '数据问答输入' }}
+        />
+        <Button
+          variant="contained"
+          endIcon={<SendIcon />}
+          disabled={loading || question.trim().length === 0}
+          onClick={submitQuestion}
+        >
+          提问
+        </Button>
+      </Stack>
+
+      {/*
+        「+」面板：默认收起（用户要的「只保留对话」）。
+        刻意用 display 切换而不是卸载节点：收起时这些控件仍在 DOM 里，
+        既保留了数据主权的可查证性，也让「切页回来」不会重置开关状态。
+      */}
+      <Box
+        data-testid="ai-tools-panel"
+        style={{ display: toolsOpen ? 'block' : 'none' }}
+        sx={{ pt: 1.5, maxHeight: '46vh', overflowY: 'auto' }}
+      >
+        {/* 快捷指令 + 数据主权 */}
+        <Card variant="outlined">
+          <CardContent>
+            <Typography variant="subtitle2" gutterBottom>
+              快捷指令
+            </Typography>
+            <Stack direction="row" flexWrap="wrap" gap={1}>
+              {QUICK_ACTIONS.filter((a) => a.feature !== 'qa').map((a) => (
+                <Button
+                  key={a.feature}
+                  variant="outlined"
+                  size="small"
+                  disabled={a.needsAnalysis && dataset === null}
+                  onClick={() => handleFeature(a.feature)}
+                  data-testid={`ai-action-${a.feature}`}
+                >
+                  {a.label}
+                </Button>
+              ))}
+              <Button variant="outlined" size="small" onClick={insertReport} disabled={project === null}>
+                插入 Markdown 报告
+              </Button>
+            </Stack>
+
+            <Divider sx={{ my: 1.5 }} />
+
+            {/* 数据主权控制 */}
+            <FormControlLabel
+              control={
+                <Switch
+                  size="small"
+                  checked={allowRaw}
+                  onChange={(e) => setAllowRaw(e.target.checked)}
+                  inputProps={{ 'aria-label': '允许发送原始数据' }}
+                />
+              }
+              label="允许发送原始数据（默认仅发送统计摘要）"
+            />
+            <Typography variant="caption" display="block" color="text.secondary">
+              勾选后每次请求仍需二次确认；默认仅发送统计摘要（数据主权 G3）。
+            </Typography>
+          </CardContent>
+        </Card>
+
+        {/* 全面诊断结果（持久化：刷新 / 切换路由 / 重挂载都不丢） */}
+        {fullDiagnosis ? (
+          <Card variant="outlined" data-testid="ai-full-diagnosis" sx={{ mt: 2 }}>
+            <CardContent>
+              <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+                <Typography variant="subtitle1" fontWeight={600}>
+                  AI 全面诊断报告
+                </Typography>
+                <Chip
+                  size="small"
+                  color="primary"
+                  variant="outlined"
+                  label={`已保存 · ${fullDiagnosis.model || '未知模型'}`}
+                  data-testid="diagnosis-model-chip"
+                />
+                <Chip
+                  size="small"
+                  variant="outlined"
+                  color={fullDiagnosis.scope === 'raw' ? 'warning' : 'default'}
+                  label={fullDiagnosis.scope === 'raw' ? '已发送：摘要 + 明细' : '已发送：仅摘要'}
+                />
+                <Box sx={{ flexGrow: 1 }} />
+                <Button size="small" startIcon={<CopyIcon />} onClick={() => void copyDiagnosis()}>
+                  {diagnosisCopied ? '已复制' : '复制'}
+                </Button>
+                <Button
+                  size="small"
+                  variant="contained"
+                  onClick={exportDiagnosis}
+                  data-testid="diagnosis-export"
+                >
+                  导出 Markdown
+                </Button>
+                <Button
+                  size="small"
+                  color="inherit"
+                  onClick={clearFullDiagnosis}
+                  data-testid="diagnosis-clear"
+                >
+                  清除
+                </Button>
+              </Stack>
+              <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
+                生成时间：{fullDiagnosis.generatedAt || '—'} · 项目：{fullDiagnosis.projectName || '未命名项目'} ·
+                纳入特性数：{fullDiagnosis.characteristicCount}
+              </Typography>
+              <Typography
+                variant="body2"
+                component="pre"
+                sx={{
+                  whiteSpace: 'pre-wrap',
+                  fontFamily: 'inherit',
+                  mt: 1,
+                  maxHeight: 420,
+                  overflow: 'auto',
+                  m: 0,
+                }}
+                data-testid="diagnosis-content"
+              >
+                {fullDiagnosis.content}
+              </Typography>
+            </CardContent>
+          </Card>
+        ) : null}
+      </Box>
 
       {/* 发送明细二次确认 */}
       <ConfirmDialog
@@ -597,7 +753,6 @@ function AiAssistantContent(): ReactElement {
     </Stack>
   );
 }
-
 /**
  * 渲染 AI 助手页（外层门控）。
  *

@@ -32,6 +32,20 @@ export interface ChatEntry {
   serverDetail?: string;
 }
 
+/**
+ * 把整段会话拼成可复制的纯文本（P7「对话可以复制」）。
+ *
+ * 以「角色：正文」分行，条目之间空一行 —— 粘到聊天窗口 / 邮件里仍然读得懂。
+ * 纯函数放在 store 模块（而不是页面组件里），是为了能直接单测格式契约。
+ *
+ * @param entries 会话消息
+ * @returns 纯文本（空会话返回空串）
+ */
+export function formatTranscript(entries: ChatEntry[]): string {
+  return entries
+    .map((e) => `${e.role === 'user' ? '我' : 'AI 助手'}：${e.text}`)
+    .join('\n\n');
+}
 /** 会话内唯一 id。计数器放在 store 模块：页面重新挂载也不会重号。 */
 let entrySeq = 0;
 export function nextEntryId(): string {
