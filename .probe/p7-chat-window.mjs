@@ -18,9 +18,12 @@ import path from 'node:path';
 
 const CHROME = 'C:/Users/22953/AppData/Local/Google/Chrome/Application/chrome.exe';
 const ROOT = 'E:/tools/Hogo-QA-tool';
-const APP_PORT = 8807;
-const CDP_PORT = 9487;
-const LLM_PORT = 8977;
+/** offline 模式：打 dist 单文件产物（用户双击的就是它；端口与 server 模式错开）。 */
+const OFFLINE = (process.argv[2] || '') === 'offline';
+const OUT_DIR = OFFLINE ? 'dist' : 'dist-server';
+const APP_PORT = OFFLINE ? 8811 : 8807;
+const CDP_PORT = OFFLINE ? 9491 : 9487;
+const LLM_PORT = OFFLINE ? 8981 : 8977;
 const APP_URL = 'http://127.0.0.1:' + APP_PORT + '/';
 const OUT = ROOT + '/.probe';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -135,9 +138,9 @@ const SEND_FN = `window.__send = function (value) {
 const COUNT_EXPR = `document.querySelectorAll('[data-testid^="ai-message-"]').length`;
 
 async function main() {
-  const profile = path.join(os.tmpdir(), 'hogo-p7chat-' + Date.now());
+  const profile = path.join(os.tmpdir(), (OFFLINE ? 'hogo-p7chatoff-' : 'hogo-p7chat-') + Date.now());
   fs.mkdirSync(profile, { recursive: true });
-  const report = { mode: 'p7-chat-window', asserts: [], ok: null, shots: [] };
+  const report = { mode: OFFLINE ? 'p7-chat-window-offline' : 'p7-chat-window', asserts: [], ok: null, shots: [] };
   const check = (name, pass, detail) => {
     report.asserts.push({ name, pass: !!pass, detail });
   };
@@ -151,7 +154,7 @@ async function main() {
   let preview;
   try {
     preview = spawn(process.execPath, [
-      'node_modules/vite/bin/vite.js', 'preview', '--outDir', 'dist-server',
+      'node_modules/vite/bin/vite.js', 'preview', '--outDir', OUT_DIR,
       '--host', '127.0.0.1', '--port', String(APP_PORT), '--strictPort',
     ], { cwd: ROOT, stdio: 'ignore' });
     await waitHttp(APP_URL, 30000);
@@ -246,7 +249,7 @@ async function main() {
       'overflowY=' + geo.overflowY + ' scrollHeight=' + geo.scrollHeight + ' clientHeight=' + geo.clientHeight);
     check('整页没有被对话撑长（response 区无外滚）', geo.mainOverflow <= 2, 'main overflow=' + geo.mainOverflow);
     check('进入/新增消息后默认贴底', geo.gap <= 2, 'gap=' + geo.gap);
-    await cdp.shot(path.join(OUT, 'p7-chat-bottom.png'));
+    await cdp.shot(path.join(OUT, OFFLINE ? 'p7-chat-offline-bottom.png' : 'p7-chat-bottom.png'));
     report.shots.push('p7-chat-bottom.png');
 
     // 6) 上拉读历史 → 新消息不许把人拽回底部
@@ -325,7 +328,8 @@ async function main() {
     try { llm.close(); } catch { /* */ }
   }
 
-  fs.writeFileSync(path.join(OUT, 'p7-chat-window.json'), JSON.stringify(report, null, 2), 'utf8');
+  const reportFile = OFFLINE ? 'p7-chat-window-offline.json' : 'p7-chat-window.json';
+  fs.writeFileSync(path.join(OUT, reportFile), JSON.stringify(report, null, 2), 'utf8');
   for (const a of report.asserts) console.log((a.pass ? 'PASS  ' : 'FAIL  ') + a.name + (a.detail ? '  [' + a.detail + ']' : ''));
   if (report.error) console.log('ERROR: ' + report.error);
   console.log('RESULT ok=' + report.ok + '  passed=' + report.asserts.filter((a) => a.pass).length + '/' + report.asserts.length);
