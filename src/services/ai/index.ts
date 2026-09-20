@@ -30,6 +30,13 @@ export {
   probeAi,
   ANALYSIS_TIMEOUT_MS,
   PROBE_TIMEOUT_MS,
+  MAX_ANALYSIS_TIMEOUT_MS,
+  MS_PER_OUTPUT_TOKEN,
+  TRANSIENT_RETRY_NOTE,
+  isRetryableTransient,
+  readFailureMessage,
+  resolveTimeoutMs,
+  type AttemptOutcome,
   __internal as __aiClientInternals,
 } from './aiClient';
 

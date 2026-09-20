@@ -7,7 +7,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material';
 import { theme } from '@/theme';
@@ -528,3 +528,71 @@ describe('AiAssistantPage —— 服务端错误原文可见（HTTP 400 报障�
     expect(screen.getByText(/请检查模型名与参数/)).toBeInTheDocument();
   });
 });
+
+  it('★ P9：等待时出现「停止」，点它真的中断请求（超时放宽到 120s 后不能只让人干等）', async () => {
+    useSettingsStore.getState().setMode('ai', '可用');
+    useProjectStore.getState().setDataset(makeDataset());
+
+    let capturedSignal: AbortSignal | undefined;
+    const fetchMock = vi.fn(async (_url: string, init?: { signal?: AbortSignal }) => {
+      capturedSignal = init?.signal;
+      return new Promise((_resolve, reject) => {
+        const fail = (): void => {
+          const err = new Error('aborted');
+          err.name = 'AbortError';
+          reject(err);
+        };
+        if (init?.signal?.aborted === true) {
+          fail();
+          return;
+        }
+        init?.signal?.addEventListener('abort', fail);
+      });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderPage();
+    // 未提问时没有「停止」
+    expect(screen.queryByTestId('ai-stop')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('ai-action-chartExplain'));
+    await waitFor(() => {
+      expect(screen.getByTestId('ai-thinking')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('ai-thinking').textContent).toContain('AI 思考中');
+    expect(screen.getByTestId('ai-stop')).toBeInTheDocument();
+
+    // 请求必须真的带上取消信号（否则「停止」只是个摆设）
+    await waitFor(() => {
+      expect(capturedSignal).toBeDefined();
+    });
+    fireEvent.click(screen.getByTestId('ai-stop'));
+    expect(capturedSignal?.aborted).toBe(true);
+
+    // 取消后：等待态消失、气泡留下「请求已取消。」、不会走「自动重试」（取消不是故障）
+    await waitFor(() => {
+      expect(screen.queryByTestId('ai-thinking')).not.toBeInTheDocument();
+    });
+    expect(screen.getByText(/请求已取消/)).toBeInTheDocument();
+    expect(fetchMock.mock.calls.filter((c) => String(c[0]).includes('/chat/completions'))).toHaveLength(1);
+  });
+
+  it('★ P9：等待超过 1 秒后显示「已等待 1 秒」（慢回答不再像卡死）', async () => {
+    vi.useFakeTimers();
+    try {
+      useSettingsStore.getState().setMode('ai', '可用');
+      useProjectStore.getState().setDataset(makeDataset());
+      // 永不返回的请求：模拟「模型很慢」，此时只有计时器在动。
+      const fetchMock = vi.fn(async () => new Promise(() => undefined));
+      vi.stubGlobal('fetch', fetchMock);
+
+      renderPage();
+      fireEvent.click(screen.getByTestId('ai-action-chartExplain'));
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1100);
+      });
+      expect(screen.getByTestId('ai-thinking').textContent).toContain('已等待 1 秒');
+    } finally {
+      vi.useRealTimers();
+    }
+  });

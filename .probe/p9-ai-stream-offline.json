@@ -1,0 +1,66 @@
+{
+  "mode": "p9-ai-stream-offline",
+  "asserts": [
+    {
+      "name": "第 1 题：应用自己重试了（桩收到 2 次请求，用户没手点）",
+      "pass": true,
+      "detail": "hits=2"
+    },
+    {
+      "name": "第 1 题：重试后真的拿到了正文（没有把失败甩给用户）",
+      "pass": true,
+      "detail": "len=255"
+    },
+    {
+      "name": "第 1 题：气泡里不再出现「响应流中断」这句无用文案",
+      "pass": true
+    },
+    {
+      "name": "第 2 题：两次截断 → 应用也只重试一次（共 2 次请求，不无限重试）",
+      "pass": true,
+      "detail": "hits=4"
+    },
+    {
+      "name": "第 2 题：文案说明「已自动重试 1 次」",
+      "pass": true
+    },
+    {
+      "name": "第 2 题：文案说明是「传到一半被切断」并给出已收字节数",
+      "pass": true
+    },
+    {
+      "name": "第 2 题：给了可操作建议（VPN / 代理 / 再问一次）",
+      "pass": true
+    },
+    {
+      "name": "第 2 题：不再出现「响应流中断」这句无用文案",
+      "pass": true
+    },
+    {
+      "name": "第 3 题：等待期间显示「已等待 N 秒」（慢请求不再像卡死）",
+      "pass": true,
+      "detail": "AI 思考中…已等待 1 秒"
+    },
+    {
+      "name": "第 3 题：等待期间有「停止」按钮",
+      "pass": true
+    },
+    {
+      "name": "第 4 题：点「停止」后气泡显示「请求已取消。」",
+      "pass": true
+    },
+    {
+      "name": "第 4 题：取消属于用户意图 → 不自动重试（桩仍只收到 6 次请求）",
+      "pass": true,
+      "detail": "hits=6"
+    },
+    {
+      "name": "四题都留下了对话记录（共 8 条消息）",
+      "pass": true
+    }
+  ],
+  "ok": true,
+  "firstBubble": "AI 助手\n已发送：仅摘要\n复制\n结论：**外壳长度**过程受控（重试后成功拿到正文）。\n\n- Xbar-R 图无判异点，能力指数 Cpk=1.33 达标。\n发送字段：projectName、characteristicCount、characteristics、datasetName、datasetImportedAt、measurementCount、selectedCharacteristic、subgroupConfig、ruleSet、defects、chartCatalogue、caveats",
+  "secondBubble": "AI 助手\n已发送：仅摘要\n复制\n已自动重试 1 次：AI 返回内容读取失败：响应传到一半被切断（已收到 40 字节）。常见于 VPN / 代理在长响应上超时或网关限速；直接再问一次通常即可。\n发送字段：projectName、characteristicCount、characteristics、datasetName、datasetImportedAt、measurementCount、selectedCharacteristic、subgroupConfig、ruleSet、defects、chartCatalogue、caveats",
+  "cancelBubble": "AI 助手\n已发送：仅摘要\n复制\n请求已取消。\n发送字段：projectName、characteristicCount、characteristics、datasetName、datasetImportedAt、measurementCount、selectedCharacteristic、subgroupConfig、ruleSet、defects、chartCatalogue、caveats"
+}

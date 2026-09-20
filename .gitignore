@@ -56,3 +56,6 @@ vite.config.*.timestamp-*.mjs
 .probe/p4-ab-*/
 .probe/p4-one-*/
 .probe/p4-xlsx-media/
+
+# 本地密钥（真 key 探针用；绝不入库）
+.secrets/

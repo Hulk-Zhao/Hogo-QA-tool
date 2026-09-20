@@ -13,8 +13,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   ANALYSIS_TIMEOUT_MS,
+  MAX_ANALYSIS_TIMEOUT_MS,
   MAX_RAW_BODY_SNIPPET_CHARS,
   MAX_SERVER_DETAIL_CHARS,
+  MS_PER_OUTPUT_TOKEN,
   PROBE_TIMEOUT_MS,
   chatCompletionsUrl,
   chatCompletion,
@@ -22,7 +24,10 @@ import {
   extractSseContent,
   modelsUrl,
   normalizeBaseUrl,
+  isRetryableTransient,
   probeAi,
+  readFailureMessage,
+  resolveTimeoutMs,
 } from '../aiClient';
 import type { FetchLike, FetchLikeResponse } from '../types';
 import { DEFAULT_MAX_TOKENS } from '../types';
@@ -700,5 +705,164 @@ describe('HTTP 非 2xx：服务端原文必须透出 + 空模型名必须前置�
 
     expect(result.mode).toBe('ai');
     expect(fetchImpl).toHaveBeenCalled();
+  });
+});
+describe('P9 —— 断流归因与自动重试', () => {
+  /** 正文一读就断的响应（模拟连接在返回正文前被切断）。 */
+  function cutResponse(): FetchLikeResponse {
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({}),
+      text: async () => {
+        throw new Error('连接被切断');
+      },
+    };
+  }
+
+  it('resolveTimeoutMs：显式传值优先；否则按输出规模自适应并封顶', () => {
+    expect(resolveTimeoutMs({ timeoutMs: 1234 })).toBe(1234);
+    expect(resolveTimeoutMs({ maxTokens: 512 })).toBe(
+      ANALYSIS_TIMEOUT_MS + 512 * MS_PER_OUTPUT_TOKEN,
+    );
+    expect(resolveTimeoutMs({ maxTokens: 100_000 })).toBe(MAX_ANALYSIS_TIMEOUT_MS);
+    // 默认 4096 tokens 的预算已经超过封顶值：默认配置拿到的就是上限。
+    expect(resolveTimeoutMs({})).toBe(MAX_ANALYSIS_TIMEOUT_MS);
+  });
+
+  it('readFailureMessage：0 字节 / 传到一半 / 超时 三种归因分开说（不再是一句「响应流中断」）', () => {
+    expect(readFailureMessage({ bytes: 0, timedOut: false })).toContain('未收到任何数据');
+    expect(readFailureMessage({ bytes: 1234, timedOut: false })).toContain('已收到 1234 字节');
+    expect(readFailureMessage({ bytes: 0, timedOut: true })).toContain('等待响应正文超时');
+  });
+
+  it('★ 读正文被切断 → 自动重试一次；重试成功就照常返回（用户那次却要手点三次）', async () => {
+    let calls = 0;
+    const fetchImpl: FetchLike = vi.fn(async () => {
+      calls += 1;
+      if (calls === 1) {
+        return cutResponse();
+      }
+      return jsonResponse({ choices: [{ message: { content: '第二次成功了' } }] });
+    });
+    const resp = await chatCompletion(CONFIG, [{ role: 'user', content: 'hi' }], {}, fetchImpl);
+    expect(resp.ok).toBe(true);
+    expect(resp.content).toBe('第二次成功了');
+    expect(calls).toBe(2);
+  });
+
+  it('★ 两次都被切断 → 文案必须说清「已自动重试 1 次」与「未收到任何数据」', async () => {
+    const fetchImpl: FetchLike = vi.fn(async () => cutResponse());
+    const resp = await chatCompletion(CONFIG, [{ role: 'user', content: 'hi' }], {}, fetchImpl);
+    expect(resp.ok).toBe(false);
+    expect(resp.errorCode).toBe('network');
+    expect(resp.errorMessage).toContain('已自动重试 1 次');
+    expect(resp.errorMessage).toContain('未收到任何数据');
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
+  it('★ 正文传到一半被截断 → 文案带上已收字节数（VPN / 代理的典型症状）', async () => {
+    /** 第一块给 3 字节，第二块直接抛错 —— 模拟长响应被网关截断。 */
+    function halfResponse(): FetchLikeResponse {
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({}),
+        text: async () => '',
+        body: {
+          getReader: () => {
+            let round = 0;
+            return {
+              read: async () => {
+                round += 1;
+                if (round === 1) {
+                  return { done: false, value: new Uint8Array([123, 34, 97]) };
+                }
+                throw new Error('网络断了');
+              },
+            };
+          },
+        },
+      };
+    }
+    const fetchImpl: FetchLike = vi.fn(async () => halfResponse());
+    const resp = await chatCompletion(CONFIG, [{ role: 'user', content: 'hi' }], {}, fetchImpl);
+    expect(resp.errorCode).toBe('network');
+    expect(resp.errorMessage).toContain('传到一半被切断');
+    expect(resp.errorMessage).toContain('已收到 3 字节');
+  });
+
+  it('★ 超时导致正文读失败 → 归 timeout，且**不**重试（重试只会让用户多等一倍）', async () => {
+    const fetchImpl: FetchLike = vi.fn(
+      async (_url, init) =>
+        ({
+          ok: true,
+          status: 200,
+          json: async () => ({}),
+          text: () =>
+            new Promise<string>((_resolve, reject) => {
+              const fail = (): void => {
+                const err = new Error('aborted');
+                err.name = 'AbortError';
+                reject(err);
+              };
+              if (init?.signal?.aborted === true) {
+                fail();
+                return;
+              }
+              init?.signal?.addEventListener('abort', fail);
+            }),
+        }) as FetchLikeResponse,
+    );
+    const resp = await chatCompletion(
+      CONFIG,
+      [{ role: 'user', content: 'hi' }],
+      { timeoutMs: 20 },
+      fetchImpl,
+    );
+    expect(resp.errorCode).toBe('timeout');
+    expect(resp.errorMessage).toContain('等待响应正文超时');
+    expect(resp.errorMessage).not.toContain('已自动重试');
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it('用户主动取消（AbortError 且非超时）→ 不重试，仍报 aborted', async () => {
+    const controller = new AbortController();
+    const fetchImpl: FetchLike = vi.fn(async (_url, init) => {
+      controller.abort();
+      return new Promise<FetchLikeResponse>((_resolve, reject) => {
+        const fail = (): void => {
+          const err = new Error('aborted');
+          err.name = 'AbortError';
+          reject(err);
+        };
+        if (init?.signal?.aborted === true) {
+          fail();
+          return;
+        }
+        init?.signal?.addEventListener('abort', fail);
+      });
+    });
+    const resp = await chatCompletion(
+      CONFIG,
+      [{ role: 'user', content: 'hi' }],
+      { signal: controller.signal },
+      fetchImpl,
+    );
+    expect(resp.errorCode).toBe('aborted');
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it('isRetryableTransient：只认瞬时链路故障，不含超时 / 取消 / 4xx / 正常响应', () => {
+    expect(isRetryableTransient({ kind: 'read-failed', status: 200, bytes: 0, timedOut: false })).toBe(true);
+    expect(isRetryableTransient({ kind: 'read-failed', status: 200, bytes: 12, timedOut: false })).toBe(true);
+    expect(isRetryableTransient({ kind: 'read-failed', status: 200, bytes: 0, timedOut: true })).toBe(false);
+    expect(isRetryableTransient({ kind: 'thrown', error: new TypeError('failed'), timedOut: false })).toBe(true);
+    const abortErr = new Error('aborted');
+    abortErr.name = 'AbortError';
+    expect(isRetryableTransient({ kind: 'thrown', error: abortErr, timedOut: false })).toBe(false);
+    expect(isRetryableTransient({ kind: 'thrown', error: new Error('t'), timedOut: true })).toBe(false);
+    expect(isRetryableTransient({ kind: 'http', status: 429, serverDetail: '' })).toBe(false);
+    expect(isRetryableTransient({ kind: 'body', status: 200, body: '{}' })).toBe(false);
   });
 });

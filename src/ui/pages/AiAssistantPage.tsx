@@ -57,6 +57,7 @@ import {
   stripChartRefs,
   diagnosisFileName,
   type AiFeature,
+  type AiResponse,
   type ChatCompletionOptions,
   type ChatMessage,
 } from '@/services/ai';
@@ -146,6 +147,17 @@ function AiAssistantContent(): ReactElement {
    * 刻意用组件 state 而非 store：每次重新进入页面都从「收起」开始。
    */
   const [toolsOpen, setToolsOpen] = useState(false);
+
+  /**
+   * 正在进行的请求的取消句柄（P9）。
+   *
+   * 为什么必须有：超时预算改为自适应（最长 120s）后，一次「模型很慢」的等待可能长达两分钟。
+   * 没有取消入口时用户只能干瞪眼（旧版 30s 固定超时反而「忍一下就过了」）。
+   * 这里把 AbortController 交给 aiClient 的 `signal`，点「停止」即中断。
+   */
+  const abortRef = useRef<AbortController | null>(null);
+  /** 已等待秒数：让「模型在慢慢写」与「卡死了」在界面上可区分。 */
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [diagnosisCopied, setDiagnosisCopied] = useState(false);
   const lastRequest = useRef<{ feature: AiFeature; note: string } | null>(null);
@@ -193,6 +205,24 @@ function AiAssistantContent(): ReactElement {
   }, [entries.length, loading, jumpToBottom]);
 
   // 规则 3：用户自己滚回底部附近就恢复跟随，上拉离开就停止跟随。
+  /** 等待计时：只在 loading 期间跑，停止后归零（下一轮从 0 开始）。 */
+  useEffect(() => {
+    if (!loading) {
+      setElapsedSeconds(0);
+      return undefined;
+    }
+    const startedAt = Date.now();
+    const timer = setInterval(() => {
+      setElapsedSeconds(Math.floor((Date.now() - startedAt) / 1000));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [loading]);
+
+  /** 取消正在进行的请求（「停止」按钮）。 */
+  const cancelRequest = (): void => {
+    abortRef.current?.abort();
+  };
+
   const handleScroll = (): void => {
     stickToBottom.current = isNearBottom(scrollRef.current);
   };
@@ -262,12 +292,23 @@ function AiAssistantContent(): ReactElement {
       apiKey: aiConfig.apiKey,
       model: aiConfig.model,
     };
-    const requestOptions: ChatCompletionOptions = { maxTokens: aiConfig.maxTokens };
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const requestOptions: ChatCompletionOptions = {
+      maxTokens: aiConfig.maxTokens,
+      signal: controller.signal,
+    };
     if (aiConfig.disableThinking) {
       // 关闭模型思考：避免不收敛的推理模型把输出配额全部耗在思考上而正文为空。
       requestOptions.reasoningEffort = 'none';
     }
-    const response = await chatCompletion(config, payload.messages as ChatMessage[], requestOptions);
+    let response: AiResponse;
+    try {
+      response = await chatCompletion(config, payload.messages as ChatMessage[], requestOptions);
+    } finally {
+      // 无论成功 / 失败 / 被取消，句柄都要清掉，否则「停止」会打到一个已经结束的请求上。
+      abortRef.current = null;
+    }
 
     // 记录审计（AiUsageLog）—— 必须真正写入 store，否则设置页审计表永远为空。
     const entry = buildUsageEntry(feature, payload.scope, response.model, response.ok);
@@ -554,9 +595,14 @@ function AiAssistantContent(): ReactElement {
         )}
 
         {loading ? (
-          <Typography variant="body2" color="text.secondary" data-testid="ai-thinking" sx={{ mt: 1.5 }}>
-            AI 思考中…
-          </Typography>
+          <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mt: 1.5 }}>
+            <Typography variant="body2" color="text.secondary" data-testid="ai-thinking">
+              AI 思考中…{elapsedSeconds > 0 ? `已等待 ${elapsedSeconds} 秒` : ''}
+            </Typography>
+            <Button size="small" color="inherit" data-testid="ai-stop" onClick={cancelRequest}>
+              停止
+            </Button>
+          </Stack>
         ) : null}
       </Box>
 

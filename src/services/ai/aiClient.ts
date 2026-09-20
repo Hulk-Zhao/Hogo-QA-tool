@@ -6,7 +6,8 @@
  *
  * - 请求：`POST {baseUrl}/chat/completions`，`Authorization: Bearer {apiKey}`。
  * - 兼容 DeepSeek / 通义 / OpenAI / Ollama（Ollama 无 Key 时留空）。
- * - 超时：分析类 30s，探测类 3s（用 AbortController 实现）。
+ * - 超时：分析类按输出规模自适应（30s 起，最多 120s；探测类固定 3s，均用 AbortController 实现）。
+ * - 瞬时链路故障（连接被切断 / 正文读一半断流）自动重试一次；超时与 4xx 不重试。
  * - 错误归一化为 `AiResponse.errorCode`，**永不抛异常**。
  */
 
@@ -484,6 +485,162 @@ export function parseCompletionBody(
   }
   return { ok: true, body: parsed };
 }
+/** 每个输出 token 预留的生成时间（毫秒）：云端实测约 25~40 tokens/s，这里取保守值。 */
+export const MS_PER_OUTPUT_TOKEN = 30;
+
+/** 自适应超时的上限：再长就该让用户去怀疑链路，而不是把界面无声卡住。 */
+export const MAX_ANALYSIS_TIMEOUT_MS = 120_000;
+
+/**
+ * 计算本次请求的超时预算（P9 起**自适应**）。
+ *
+ * 为什么不能再固定 30s：`stream:false` 下必须等**整段生成完**才能拿到正文，
+ * 而 4096 tokens 的中文报告在云端模型上常要 60~120s。固定 30s 会把
+ * 「模型正在好好写」误判成故障 —— 用户实测的「连续两次失败、第三次才成功」
+ * 就与这个预算偏紧相符（详见记忆 P9 节）。
+ *
+ * 显式传入 `timeoutMs` 时**完全以调用方为准**（测试与特殊场景需要确定性）。
+ *
+ * @param options 请求选项
+ * @returns 超时毫秒数
+ */
+export function resolveTimeoutMs(options: ChatCompletionOptions): number {
+  if (Number.isFinite(options.timeoutMs) && (options.timeoutMs ?? 0) > 0) {
+    return options.timeoutMs as number;
+  }
+  const maxTokens =
+    Number.isFinite(options.maxTokens) && (options.maxTokens ?? 0) > 0
+      ? (options.maxTokens as number)
+      : DEFAULT_MAX_TOKENS;
+  return Math.min(ANALYSIS_TIMEOUT_MS + maxTokens * MS_PER_OUTPUT_TOKEN, MAX_ANALYSIS_TIMEOUT_MS);
+}
+
+/** 瞬时故障自动重试时拼在错误信息前的说明（用户必须知道应用替他做了什么）。 */
+export const TRANSIENT_RETRY_NOTE = '已自动重试 1 次：';
+
+/**
+ * 单轮「发请求 + 读正文」的结果分类。
+ *
+ * 分类而不是直接造文案：错因不同 → 文案不同、**是否重试**不同。
+ */
+export type AttemptOutcome =
+  | { kind: 'http'; status: number; serverDetail: string }
+  | { kind: 'read-failed'; status: number; bytes: number; timedOut: boolean }
+  | { kind: 'thrown'; error: unknown; timedOut: boolean }
+  | { kind: 'body'; status: number; body: string };
+
+/**
+ * 这一轮结果是否值得**整轮重试**（只给一次机会）。
+ *
+ * 只认「瞬时链路故障」：
+ * - fetch 抛错（网络层失败），但不含超时与用户主动取消；
+ * - 正文读到一半被切断（含 0 字节）。
+ *
+ * 刻意排除：超时（已用满本轮预算，再等一轮只会让用户多等一倍）、
+ * 4xx（重发无意义且有害，见 aiClient 的自愈策略）。
+ *
+ * @param outcome 单轮结果
+ * @returns 是否重试
+ */
+export function isRetryableTransient(outcome: AttemptOutcome): boolean {
+  if (outcome.kind === 'thrown') {
+    const name = (outcome.error as { name?: string } | null)?.name ?? '';
+    return !outcome.timedOut && name !== 'AbortError';
+  }
+  if (outcome.kind === 'read-failed') {
+    return !outcome.timedOut;
+  }
+  return false;
+}
+
+/**
+ * 正文读取失败时的可操作文案。
+ *
+ * 旧实现无论是超时、断连还是被截断，都只说一句「响应流中断」——用户读到的信息量
+ * 等于零（既不知道是谁的问题，也不知道该做什么）。这里按**证据**分成三种：
+ * 0 字节 = 连接在返回正文前就被切断；N 字节 = 传到一半被截断（网关 / 代理典型症状）；
+ * 超时 = 服务端一直没把正文发完。
+ *
+ * @param outcome 读正文失败的信息（已收字节数 / 是否超时）
+ * @returns 面向用户的一句话
+ */
+export function readFailureMessage(outcome: { bytes: number; timedOut: boolean }): string {
+  if (outcome.timedOut) {
+    return (
+      '等待响应正文超时，连接已中断（服务端在这段时间里没有把正文发完）。' +
+      '若是云端模型的长回答，可到「设置」页调小「最大输出 tokens」缩小回答长度，或改用更快的模型后重试。'
+    );
+  }
+  if (outcome.bytes <= 0) {
+    return (
+      'AI 返回内容读取失败：连接在返回正文前被切断（未收到任何数据）。' +
+      '常见于 VPN / 代理不稳定，或服务端主动断开；直接再问一次通常即可。'
+    );
+  }
+  return (
+    `AI 返回内容读取失败：响应传到一半被切断（已收到 ${outcome.bytes} 字节）。` +
+    '常见于 VPN / 代理在长响应上超时或网关限速；直接再问一次通常即可。'
+  );
+}
+
+/** 按 UTF-8 计算字符串字节数（假响应没有字节流时用它估个准数）。 */
+function utf8Length(text: string): number {
+  let total = 0;
+  for (const ch of text) {
+    const cp = ch.codePointAt(0) ?? 0;
+    total += cp < 0x80 ? 1 : cp < 0x800 ? 2 : cp < 0x10000 ? 3 : 4;
+  }
+  return total;
+}
+
+/** 浏览器 / undici 响应体流的最小读取接口（只用到 read）。 */
+type RawReader = { read: () => Promise<{ done: boolean; value?: Uint8Array }> };
+
+/**
+ * 读响应正文，并统计**实际收到的字节数**。
+ *
+ * 真实 fetch 有 `body` 流时逐块读：断流发生在第几块、共收到多少字节都能拿到，
+ * 这是把「断连」与「被截断」分开的唯一证据。假响应（测试注入、老环境）没有流，
+ * 退回 `text()`，行为与旧实现完全一致。
+ *
+ * @param response 响应
+ * @returns 成功时给出正文与字节数；失败时给出**已收字节数**
+ */
+async function readBodyWithCount(
+  response: FetchLikeResponse,
+): Promise<{ ok: true; text: string; bytes: number } | { ok: false; bytes: number }> {
+  const rawBody = (response as { body?: { getReader?: () => RawReader } | null }).body;
+  const reader: RawReader | null =
+    rawBody && typeof rawBody.getReader === 'function' ? rawBody.getReader() : null;
+  if (reader === null) {
+    try {
+      const text = await response.text();
+      return { ok: true, text, bytes: utf8Length(text) };
+    } catch {
+      return { ok: false, bytes: 0 };
+    }
+  }
+  const decoder = new TextDecoder('utf-8');
+  let bytes = 0;
+  let text = '';
+  try {
+    for (;;) {
+      // eslint-disable-next-line no-await-in-loop -- 流必须按顺序读
+      const chunk = await reader.read();
+      if (chunk.done) {
+        break;
+      }
+      if (chunk.value && chunk.value.byteLength > 0) {
+        bytes += chunk.value.byteLength;
+        text += decoder.decode(chunk.value, { stream: true });
+      }
+    }
+    text += decoder.decode();
+    return { ok: true, text, bytes };
+  } catch {
+    return { ok: false, bytes };
+  }
+}
 /**
  * 发起一次 chat completion 请求（架构 §8.1）。
  *
@@ -537,13 +694,15 @@ export async function chatCompletion(
     };
   }
 
-  const timeoutMs = options.timeoutMs ?? ANALYSIS_TIMEOUT_MS;
+  const timeoutMs = resolveTimeoutMs(options);
   let maxTokens = options.maxTokens ?? DEFAULT_MAX_TOKENS;
   const hasReasoningEffort = options.reasoningEffort !== undefined;
   /** 是否已因服务端不识别而摘掉 `reasoning_effort`（只摘一次）。 */
   let dropReasoningEffort = false;
   /** 自动收敛 `max_tokens` 的说明：拼进错误信息，让用户知道到底发生了什么。 */
   let clampNote = '';
+  /** 瞬时故障自动重试的说明：同样拼进错误信息（应用替用户做了什么，必须说出来）。 */
+  let retryNote = '';
   const buildBody = (includeReasoningEffort: boolean): string =>
     JSON.stringify({
       model: config.model,
@@ -555,93 +714,152 @@ export async function chatCompletion(
         ? { reasoning_effort: options.reasoningEffort }
         : {}),
     });
-  const { signal, dispose, timedOut } = withTimeout(timeoutMs, options.signal);
-  try {
-    const url = chatCompletionsUrl(config.baseUrl);
-    const headers = buildHeaders(config.apiKey);
-    /** 最多 3 次请求：首次 + 收敛 max_tokens + 摘掉 reasoning_effort。 */
-    const MAX_ATTEMPTS = 3;
-    let response!: FetchLikeResponse;
-    let serverDetail = '';
-    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
-      response = await doFetch(url, {
-        method: 'POST',
-        headers,
-        body: buildBody(hasReasoningEffort && !dropReasoningEffort),
-        signal,
-      });
-      if (response.ok) {
-        break;
-      }
-      let detail = '';
-      try {
-        detail = await response.text();
-      } catch {
-        detail = '';
-      }
-      serverDetail = extractServerDetail(detail);
+  /**
+   * 跑一轮「发请求 + 读正文」，返回**结果分类**而不是直接造文案。
+   *
+   * 为什么按「一轮」切分（P9，用户实测踩到）：单轮之内的 400 自愈（收敛 max_tokens /
+   * 摘掉 reasoning_effort）与「瞬时链路故障**整轮**重试」是两种语义。塞进同一个 for
+   * 循环里会让两者互相挤占重试预算 —— 用户那次「连续两次 响应流中断、手点第三次才成功」，
+   * 应用一次都没替他重试，只能靠他手点。
+   */
+  const runOnce = async (): Promise<AttemptOutcome> => {
+    // 超时预算**每轮独立**：重试必须有自己的完整预算，不能被上一轮吃掉。
+    const { signal, dispose, timedOut } = withTimeout(timeoutMs, options.signal);
+    try {
+      const url = chatCompletionsUrl(config.baseUrl);
+      const headers = buildHeaders(config.apiKey);
+      /** 单轮内最多 3 次请求：首次 + 收敛 max_tokens + 摘掉 reasoning_effort。 */
+      const MAX_ATTEMPTS = 3;
+      let response!: FetchLikeResponse;
+      let serverDetail = '';
+      for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
+        response = await doFetch(url, {
+          method: 'POST',
+          headers,
+          body: buildBody(hasReasoningEffort && !dropReasoningEffort),
+          signal,
+        });
+        if (response.ok) {
+          break;
+        }
+        let detail = '';
+        try {
+          detail = await response.text();
+        } catch {
+          detail = '';
+        }
+        serverDetail = extractServerDetail(detail);
 
-      // 自愈 1（优先）：服务端在 400 里直接给出了 `max_tokens` 的合法区间。
-      // 各家上限差别极大（本机 Ollama 基本不限、DeepSeek 实测 [1, 393216]），
-      // 而「最大输出 tokens」按需求刻意**不设上限** —— 用户填的大值必然被拒。
-      // 与其让用户自己猜该填多少，不如按服务端给的区间收敛后重试；仍失败才报错。
-      const range = parseMaxTokensRange(detail);
-      if (range) {
-        const clamped = clampMaxTokens(maxTokens, range);
-        if (clamped !== maxTokens) {
-          clampNote =
-            `已将「最大输出 tokens」由 ${maxTokens} 自动收敛为 ${clamped}` +
-            `（服务端要求 ${range.min}~${range.max}）后重试。`;
-          maxTokens = clamped;
+        // 自愈 1（优先）：服务端在 400 里直接给出了 `max_tokens` 的合法区间。
+        // 各家上限差别极大（本机 Ollama 基本不限、DeepSeek 实测 [1, 393216]），
+        // 而「最大输出 tokens」按需求刻意**不设上限** —— 用户填的大值必然被拒。
+        // 与其让用户自己猜该填多少，不如按服务端给的区间收敛后重试；仍失败才报错。
+        const range = parseMaxTokensRange(detail);
+        if (range) {
+          const clamped = clampMaxTokens(maxTokens, range);
+          if (clamped !== maxTokens) {
+            clampNote =
+              `已将「最大输出 tokens」由 ${maxTokens} 自动收敛为 ${clamped}` +
+              `（服务端要求 ${range.min}~${range.max}）后重试。`;
+            maxTokens = clamped;
+            continue;
+          }
+        }
+
+        // 自愈 2：部分服务端不认识 `reasoning_effort`，会以 4xx 拒绝整个请求。
+        // 去掉该字段重试（复用同一超时/取消信号），保证非推理后端不被卡死。
+        // 重试条件已收窄：鉴权失败（401/403）与限流（429）不重试（重发无意义且有害）。
+        if (
+          hasReasoningEffort &&
+          !dropReasoningEffort &&
+          shouldRetryWithoutReasoningEffort(response.status)
+        ) {
+          dropReasoningEffort = true;
           continue;
         }
+        break;
       }
 
-      // 自愈 2：部分服务端不认识 `reasoning_effort`，会以 4xx 拒绝整个请求。
-      // 去掉该字段重试（复用同一超时/取消信号），保证非推理后端不被卡死。
-      // 重试条件已收窄：鉴权失败（401/403）与限流（429）不重试（重发无意义且有害）。
-      if (
-        hasReasoningEffort &&
-        !dropReasoningEffort &&
-        shouldRetryWithoutReasoningEffort(response.status)
-      ) {
-        dropReasoningEffort = true;
-        continue;
+      if (!response.ok) {
+        return { kind: 'http', status: response.status, serverDetail };
       }
-      break;
-    }
 
-    if (!response.ok) {
-      const code = errorCodeFromStatus(response.status);
-      // 服务端原文是**唯一**能指明真实原因的信息（「model is required」等）：
-      // 归一化后的 errorCode 只会把任意 4xx 压成 content，不足以自助排查。
-      // 故此处既拼进 errorMessage（一行可读文案），又保留原文供 UI 单独展示。
-      const baseMessage = httpErrorMessage(code, response.status, serverDetail);
-      return {
-        ok: false,
-        content: '',
-        errorCode: code,
-        errorMessage: clampNote.length > 0 ? `${clampNote}${baseMessage}` : baseMessage,
-        model,
-        httpStatus: response.status,
-        ...(serverDetail.length > 0 ? { serverDetail } : {}),
-      };
+      // 读正文时手写流读而不是 `response.text()`：只有流读才拿得到
+      // 「到底收到了多少字节」，而 0 字节与「传了一半」指向完全不同的原因
+      // （连接被切断 vs 网关 / 代理把长响应截断）—— 这正是用户上次那条
+      // 「响应流中断」无法自助排查的地方。
+      const read = await readBodyWithCount(response);
+      if (!read.ok) {
+        return {
+          kind: 'read-failed',
+          status: response.status,
+          bytes: read.bytes,
+          timedOut: timedOut(),
+        };
+      }
+      return { kind: 'body', status: response.status, body: read.text };
+    } catch (err) {
+      return { kind: 'thrown', error: err, timedOut: timedOut() };
+    } finally {
+      dispose();
     }
+  };
 
-    let rawText: string;
-    try {
-      rawText = await response.text();
-    } catch {
-      return {
-        ok: false,
-        content: '',
-        errorCode: 'content',
-        errorMessage: 'AI 返回内容读取失败（响应流中断）。',
-        model,
-        httpStatus: response.status,
-      };
-    }
-    const parsedBody = parseCompletionBody(rawText);
+  let outcome = await runOnce();
+  // 瞬时链路故障（fetch 抛错 / 正文读到一半被切断）自动重试**一次**：
+  // 用户实测「连续两次失败、手点第三次才成功」说明链路是「抽一下就好」的，
+  // 这种重试应当由应用完成，而不是指望用户手点。
+  // 刻意**不重试**两类：超时（已用满本轮预算，再等一轮只会让用户多等一倍）、
+  // 以及用户主动取消。
+  if (isRetryableTransient(outcome)) {
+    retryNote = TRANSIENT_RETRY_NOTE;
+    outcome = await runOnce();
+  }
+  /** 附加说明（自动收敛 / 自动重试）：用户必须知道应用替他做了什么。 */
+  const note = clampNote + retryNote;
+
+  if (outcome.kind === 'http') {
+    const code = errorCodeFromStatus(outcome.status);
+    // 服务端原文是**唯一**能指明真实原因的信息（「model is required」等）：
+    // 归一化后的 errorCode 只会把任意 4xx 压成 content，不足以自助排查。
+    // 故此处既拼进 errorMessage（一行可读文案），又保留原文供 UI 单独展示。
+    const baseMessage = httpErrorMessage(code, outcome.status, outcome.serverDetail);
+    return {
+      ok: false,
+      content: '',
+      errorCode: code,
+      errorMessage: note.length > 0 ? `${note}${baseMessage}` : baseMessage,
+      model,
+      httpStatus: outcome.status,
+      ...(outcome.serverDetail.length > 0 ? { serverDetail: outcome.serverDetail } : {}),
+    };
+  }
+
+  if (outcome.kind === 'read-failed') {
+    const baseMessage = readFailureMessage(outcome);
+    return {
+      ok: false,
+      content: '',
+      errorCode: outcome.timedOut ? 'timeout' : 'network',
+      errorMessage: note.length > 0 ? `${note}${baseMessage}` : baseMessage,
+      model,
+      httpStatus: outcome.status,
+    };
+  }
+
+  if (outcome.kind === 'thrown') {
+    const code = errorCodeFromException(outcome.error, outcome.timedOut);
+    return {
+      ok: false,
+      content: '',
+      errorCode: code,
+      errorMessage: note.length > 0 ? `${note}${ERROR_MESSAGE[code]}` : ERROR_MESSAGE[code],
+      model,
+    };
+  }
+
+  {
+    const parsedBody = parseCompletionBody(outcome.body);
     if (!parsedBody.ok) {
       return {
         ok: false,
@@ -649,7 +867,7 @@ export async function chatCompletion(
         errorCode: 'content',
         errorMessage: parsedBody.message,
         model,
-        httpStatus: response.status,
+        httpStatus: outcome.status,
         ...(parsedBody.detail.length > 0 ? { serverDetail: parsedBody.detail } : {}),
       };
     }
@@ -662,7 +880,7 @@ export async function chatCompletion(
         errorCode: 'content',
         errorMessage: emptyContentMessage(finishReason, reasoning, maxTokens),
         model: respModel || model,
-        httpStatus: response.status,
+        httpStatus: outcome.status,
         finishReason,
         reasoning,
       };
@@ -673,21 +891,10 @@ export async function chatCompletion(
       errorCode: null,
       errorMessage: null,
       model: respModel || model,
-      httpStatus: response.status,
+      httpStatus: outcome.status,
       finishReason,
       reasoning,
     };
-  } catch (err) {
-    const code = errorCodeFromException(err, timedOut());
-    return {
-      ok: false,
-      content: '',
-      errorCode: code,
-      errorMessage: ERROR_MESSAGE[code],
-      model,
-    };
-  } finally {
-    dispose();
   }
 }
 

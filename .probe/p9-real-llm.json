@@ -1,0 +1,82 @@
+{
+  "mode": "p9-real-llm",
+  "model": "deepseek-chat",
+  "base": "http://127.0.0.1:8691/v1",
+  "keySource": "环境变量",
+  "asserts": [
+    {
+      "name": "设置里的模型名在服务端真实存在",
+      "pass": true,
+      "detail": "model=deepseek-chat 可用=deepseek-chat/deepseek-reasoner"
+    },
+    {
+      "name": "真 key 能打通 chat/completions",
+      "pass": true,
+      "detail": "关闭思考=true"
+    },
+    {
+      "name": "问答：真模型回了内容",
+      "pass": true,
+      "detail": "len=353"
+    },
+    {
+      "name": "问答：点名了具体子组编号",
+      "pass": true
+    },
+    {
+      "name": "问答：给出了判异规则编号（W1…W4 / N1…N8）",
+      "pass": true
+    },
+    {
+      "name": "问答：没有「摘要未提供 / 数据不足」这类推诿话术",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "问答：正文里没有露出 [[chart:…]] 标记",
+      "pass": true
+    },
+    {
+      "name": "全面诊断：五节标题齐全（总体结论/过程能力盘点/主要问题与疑似根因/改善行动/数据局限与风险提示）",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "全面诊断：报告有实质长度（> 400 字）",
+      "pass": true,
+      "detail": "len=591"
+    },
+    {
+      "name": "全面诊断：没有「摘要未提供 / 数据不足」这类推诿话术",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "全面诊断：报告里没有露出 [[chart:…]] 标记",
+      "pass": true
+    },
+    {
+      "name": "全面诊断：报告已持久化（顶栏出现「诊断报告（已保存）」入口）",
+      "pass": true
+    }
+  ],
+  "ok": true,
+  "models": {
+    "status": 200,
+    "body": "{\"data\":[{\"id\":\"deepseek-chat\"},{\"id\":\"deepseek-reasoner\"}]}"
+  },
+  "modelIds": [
+    "deepseek-chat",
+    "deepseek-reasoner"
+  ],
+  "preflight": [
+    {
+      "disableThinking": true,
+      "status": 200,
+      "ok": true,
+      "bodyHead": "{\"model\":\"deepseek-chat\",\"choices\":[{\"finish_reason\":\"stop\",\"message\":{\"content\":\"结论：**外壳长度第 7 个子组**均值 50.6321 超出上控制限 UCL=50.0218，命中 **W1**（1 点超出 ±3σ）。\\n\\n- 依据：points[6].mean 高于 UCL；violations[0].subgroupIndices = [7]；\\n- 转轴直径 10 个子组均值全在限内，无判异。\"}}]}"
+    }
+  ],
+  "qaReply": "AI 助手\n已发送：仅摘要\n复制\n结论：**外壳长度第 7 个子组**均值 50.6321 超出上控制限 UCL=50.0218，命中 **W1**（1 点超出 ±3σ）。\n\n- 依据：points[6].mean 高于 UCL；violations[0].subgroupIndices = [7]；\n- 转轴直径 10 个子组均值全在限内，无判异。\n发送字段：projectName、characteristicCount、characteristics、datasetName、datasetImportedAt、measurementCount、selectedCharacteristic、subgroupConfig、ruleSet、defects、chartCatalogue、caveats",
+  "diagnosisText": "AI 全面诊断报告\n已保存 · deepseek-chat\n已发送：仅摘要\n复制\n导出 MARKDOWN\n清除\n生成时间：2026-09-20T12:49:23.849Z · 项目：未命名项目 · 纳入特性数：2\n## 一、总体结论\n外壳长度过程能力不足且存在失控点（第 7 子组越 UCL），是当前最需关注的特性；转轴直径能力充足。\n\n## 二、过程能力盘点\n- 外壳长度：Cpk=1.25 < 1.33（门槛未达），Ppk=1.19；\n- 转轴直径：Cpk=1.45 ≥ 1.33，能力充足。\n\n## 三、主要问题与疑似根因\n1. 外壳长度第 7 子组均值越 UCL（规则 W1，subgroupIndices=[7]），疑似刀具热变形；\n2. 外壳长度均值偏离规格中心（Ca=-0.06），对中不良；\n3. 缺陷 Pareto 前两项：划伤 38.2%、尺寸超差 25.7%（累计 63.8%）。\n\n## 四、改善行动\n1.（设备）换刀后首件复测，连续 5 子组均值回收：验证方式＝重算 Xbar-R；判定阈值＝全部落在 ±3σ 内；\n2.（工艺）调整对中量，使 Ca → 0：验证方式＝重抽 50 件算 Cpk ≥ 1.33。\n\n## 五、数据局限与风险提示\n子组数 12 偏少（pointsTruncated=false）；规格单侧风险未体现；仅一批数据，未覆盖换批波动。"
+}

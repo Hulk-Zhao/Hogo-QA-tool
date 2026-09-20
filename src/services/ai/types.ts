@@ -181,6 +181,14 @@ export interface FetchLikeResponse {
   status: number;
   json: () => Promise<unknown>;
   text: () => Promise<string>;
+  /**
+   * 真实 fetch（浏览器 / undici）才有的响应体流。
+   *
+   * 假响应（测试注入、老环境）没有它 —— 此时 `chatCompletion` 退回 `text()`，
+   * 行为与旧实现一致；有它时会逐块读，从而拿到「到底收到了多少字节」，
+   * 用于区分「连接被切断（0 字节）」与「长响应被网关截断（N 字节）」。
+   */
+  body?: { getReader?: () => { read: () => Promise<{ done: boolean; value?: Uint8Array }> } } | null;
 }
 
 /** buildPayload 白名单构造结果（架构 §8.2）。 */
