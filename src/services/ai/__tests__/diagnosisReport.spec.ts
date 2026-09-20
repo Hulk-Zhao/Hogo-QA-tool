@@ -62,9 +62,14 @@ describe('fullDiagnosis 系统提示词', () => {
     }
   });
 
-  it('包含防臆造与数据主权约束', () => {
-    expect(prompt).toContain('不得臆造');
-    expect(prompt).toContain('摘要未提供');
+  it('包含防臆造约束，且明确禁止拿「数据未提供」当回答（P8 口径）', () => {
+    // P8 起措辞从「不得臆造」升级为「严禁臆造」，同时新增一条硬约束：
+    // 数据已经给全（points / violations / chartCatalogue 都在），
+    // 不许再回答「摘要未提供…」—— 这正是用户报障时看到的红框那句话。
+    expect(prompt).toMatch(/严[禁格]臆造/);
+    expect(prompt).toMatch(/禁[止止][^。]{0,20}摘要未提供/);
+    // 数据主权口径不变：明确告知「不发送也不需要原始测量明细」的边界。
+    expect(prompt).toContain('不是原始测量值');
   });
 
   it('引用能力门槛 1.33 / 1.67（与能力页口径一致）', () => {

@@ -46,14 +46,15 @@ import {
   Add as AddIcon,
 } from '@mui/icons-material';
 import type { ReactElement } from 'react';
-import { buildCapabilitySummary, buildSubgroups, computeCapability } from '@/core';
-import type { CapabilitySummaryInput } from '@/core';
 import {
+  buildAnalysisContext,
   buildDiagnosisMarkdown,
   buildFullDiagnosisRecord,
   buildPayload,
   buildUsageEntry,
   chatCompletion,
+  extractChartRefIds,
+  stripChartRefs,
   diagnosisFileName,
   type AiFeature,
   type ChatCompletionOptions,
@@ -66,9 +67,11 @@ import { buildReportModel } from '@/data/exporter/reportModel';
 import { useProjectStore } from '@/store/projectStore';
 import { useDiagnosisStore } from '@/store/diagnosisStore';
 import { formatTranscript, nextEntryId, useAiChatStore, type ChatEntry } from '@/store/aiChatStore';
+import { useAnalysisStore } from '@/store/analysisStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useUiStore } from '@/store/uiStore';
 import EmptyState from '@/ui/components/EmptyState';
+import ChatChartRefs from '@/ui/components/ChatChartRefs';
 import ConfirmDialog from '@/ui/components/ConfirmDialog';
 import { writeClipboard } from '@/ui/clipboard';
 import { isNearBottom, scrollToBottom } from '@/ui/chatScroll';
@@ -96,67 +99,25 @@ const QUICK_ACTIONS: QuickAction[] = [
 
 
 /**
- * 单特性统计摘要条目。
- *
- * 有两个来源、需要同一目标类型：
- * 1. 有数据 → `buildCapabilitySummary(...)` 返回的完整 `CapabilitySummaryInput`；
- * 2. 无数据 → 仅含 `characteristicName` 与 `n: 0` 的最小占位。
- *
- * 用 `Pick<..., 'characteristicName' | 'n'> & Partial<...>` 让两边类型对齐：
- * 完整能力摘要可赋值给它（多余字段被允许），占位对象亦可（其余字段可选）。
- * 这样无需把 `CapabilitySummaryInput` 强转成 `Record<string, unknown>`
- * （后者因缺少字符串索引签名而无法直接赋值）。
- */
-type CharacteristicSummaryEntry = Pick<CapabilitySummaryInput, 'characteristicName' | 'n'> &
-  Partial<CapabilitySummaryInput>;
-
-/**
- * 由当前项目/数据集构造可发送的统计摘要。
- *
- * @returns 摘要对象（仅统计量，绝不含逐条原始值）
- */
-function buildSummaryForFeature(
-  projectName: string,
-  dataset: { characteristics: { name: string; specLimits: unknown; measurements: { value: number; excluded: boolean }[] }[] } | null,
-): Record<string, unknown> {
-  if (!dataset || dataset.characteristics.length === 0) {
-    return { projectName, characteristicCount: 0, totalMeasurements: 0 };
-  }
-  const chars: CharacteristicSummaryEntry[] = [];
-  let total = 0;
-  for (const c of dataset.characteristics) {
-    const values = c.measurements.filter((m) => m.excluded !== true).map((m) => m.value);
-    total += values.length;
-    if (values.length === 0) {
-      chars.push({ characteristicName: c.name, n: 0 });
-      continue;
-    }
-    const subgroups = buildSubgroups(
-      values.map((v, i) => ({ id: `m${i}`, value: v })),
-      { mode: 'fixed', capacity: 5 },
-    );
-    const cap = computeCapability(values, c.specLimits as never, subgroups, { useImrFallback: true });
-    chars.push(buildCapabilitySummary(cap, c.name));
-  }
-  return {
-    projectName,
-    characteristicCount: dataset.characteristics.length,
-    totalMeasurements: total,
-    characteristics: chars,
-  };
-}
-
-/**
  * 渲染 AI 助手页。
  *
  * @returns 页面元素
  */
 function AiAssistantContent(): ReactElement {
   const project = useProjectStore((s) => s.project);
+  const focusName = useProjectStore(
+    (s) => s.dataset?.characteristics.find((c) => c.id === s.selectedCharacteristicId)?.name ?? null,
+  );
   const dataset = useProjectStore((s) => s.dataset);
   const projectName = useProjectStore((s) => s.projectName);
   const appendAiUsageLog = useProjectStore((s) => s.appendAiUsageLog);
   const aiConfig = useSettingsStore((s) => s.aiConfig);
+  // 判异规则开关与「控制图」页同源：发给模型的判异明细必须与用户在界面上看到的一致。
+  const rulesConfig = useSettingsStore((s) => s.rulesConfig);
+  const subgroupCapacity = useAnalysisStore((s) => s.subgroupCapacity);
+  const subgroupMode = useAnalysisStore((s) => s.subgroupMode);
+  const manualBoundaries = useAnalysisStore((s) => s.manualBoundaries);
+  const sigmaMode = useAnalysisStore((s) => s.sigmaMode);
   const pushToast = useUiStore((s) => s.pushToast);
 
   // 全面诊断结果：来自持久化 store，不在组件 state 里（需求 #12）。
@@ -236,9 +197,37 @@ function AiAssistantContent(): ReactElement {
     stickToBottom.current = isNearBottom(scrollRef.current);
   };
 
+  /**
+   * 发给 AI 的「已算好的统计结果」。
+   *
+   * 缺陷背景（P8 用户报障）：此前这里只装配了 `buildCapabilitySummary`（能力指数），
+   * 子组序列与判异明细从未发给模型 → 模型只能回答「摘要未给出控制图点子序列，
+   * 因此不能编造第几子组触发某判异规则」。现在改为装配完整上下文：
+   * 每特性的控制图（限 + 逐子组均值/极差序列 + 逐条判异明细 + 超限点）+ 图表目录 + 数据局限。
+   * 仍然不含逐条原始测量值（数据主权边界不变，清单见气泡上的「发送字段」）。
+   */
   const summary = useMemo(
-    () => buildSummaryForFeature(projectName, dataset),
-    [projectName, dataset],
+    () =>
+      buildAnalysisContext({
+        projectName,
+        dataset,
+        subgroupCapacity,
+        subgroupMode,
+        manualBoundaries,
+        sigmaMode,
+        rulesConfig,
+        focusCharacteristic: focusName,
+      }),
+    [
+      projectName,
+      dataset,
+      subgroupCapacity,
+      subgroupMode,
+      manualBoundaries,
+      sigmaMode,
+      rulesConfig,
+      focusName,
+    ],
   );
 
   /**
@@ -343,7 +332,7 @@ function AiAssistantContent(): ReactElement {
   /** 复制一条消息（用户提问与 AI 回复一视同仁 —— 用户要「对话可以复制」）。 */
   const copyEntry = async (entry: ChatEntry): Promise<void> => {
     try {
-      await writeClipboard(entry.text);
+      await writeClipboard(stripChartRefs(entry.text));
       setCopiedId(entry.id);
       setTimeout(() => setCopiedId(null), 1500);
     } catch {
@@ -354,7 +343,9 @@ function AiAssistantContent(): ReactElement {
   /** 复制整段对话（纯文本，逐条不漏；空会话时由按钮的 disabled 拦住）。 */
   const copyTranscript = async (): Promise<void> => {
     try {
-      await writeClipboard(formatTranscript(entries));
+      await writeClipboard(
+        formatTranscript(entries.map((e) => ({ ...e, text: stripChartRefs(e.text) }))),
+      );
       setCopiedId(COPY_TRANSCRIPT_ID);
       setTimeout(() => setCopiedId(null), 1500);
     } catch {
@@ -536,8 +527,12 @@ function AiAssistantContent(): ReactElement {
                     component="pre"
                     sx={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', m: 0 }}
                   >
-                    {entry.text}
+                    {stripChartRefs(entry.text)}
                   </Typography>
+                  {/* AI 引用的图表：用项目里的真实数据现算现画（不采信模型编的数字） */}
+                  {entry.role === 'assistant' ? (
+                    <ChatChartRefs ids={extractChartRefIds(entry.text)} />
+                  ) : null}
                   {entry.sentFields && entry.sentFields.length > 0 ? (
                     <Typography variant="caption" sx={{ mt: 0.5, display: 'block', opacity: 0.75 }}>
                       发送字段：{entry.sentFields.join('、')}

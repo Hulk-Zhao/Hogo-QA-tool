@@ -34,6 +34,19 @@ export {
 } from './aiClient';
 
 export {
+  buildAnalysisContext,
+  buildChartCatalogue,
+  deriveChartType,
+  parseChartRefId,
+  subgroupSeriesLimitFor,
+  SUBGROUP_SERIES_BUDGET,
+  SUBGROUP_SERIES_MAX,
+  type AnalysisContextOptions,
+  type ChartRef,
+} from './analysisContext';
+
+export { extractChartRefIds, stripChartRefs } from './chartRefs';
+export {
   buildMessages,
   buildPayload,
   pickKnownSummaryFields,

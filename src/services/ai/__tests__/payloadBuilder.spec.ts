@@ -96,3 +96,77 @@ describe('summaryWhitelist', () => {
     expect(wl).not.toContain('__raw');
   });
 });
+
+/**
+ * P8：把「够 LLM 用」的数据面送出去 + 公共数据契约。
+ *
+ * 缺陷背景（用户报障 + 截图）：AI 回复「这份统计摘要里…未给出控制图点子序列，
+ * warnings 全为空，因此不能编造第几子组触发某判异规则」。
+ * 修复分两半，两半都必须被锁住：
+ *  ① 数据面：analysisContext 装配的字段（points / violations / chartCatalogue…）必须活着穿过白名单；
+ *  ② 提示词：system prompt 必须写明「数据已算好、直接用」并**禁止**拿「数据未提供」当回答。
+ */
+describe('buildPayload —— P8 数据面与数据契约', () => {
+  const context = {
+    projectName: '质量日报',
+    datasetName: '外壳长度数据',
+    measurementCount: 60,
+    characteristicCount: 1,
+    selectedCharacteristic: '外壳长度',
+    subgroupConfig: { mode: 'fixed', capacity: 5, sigmaMode: 'R', subgroupSeriesLimit: 60 },
+    ruleSet: { enabled: ['W1', 'N1'], labels: { W1: '1 点超出 ±3σ' } },
+    characteristics: [
+      {
+        characteristicName: '外壳长度',
+        n: 60,
+        cpk: 1.42,
+        controlChart: {
+          chartType: 'Xbar-R',
+          subgroupCount: 12,
+          ucl: 50.2,
+          lcl: 49.9,
+          points: [{ i: 1, mean: 50.01, range: 0.04 }],
+          violations: [{ ruleId: 'W1', subgroupIndices: [7], message: '第 7 点超出上限' }],
+          outOfLimit: [{ subgroupIndex: 7, limit: 'UCL', value: 50.6 }],
+        },
+      },
+    ],
+    chartCatalogue: [{ id: 'chart:control:外壳长度', kind: 'control', title: '外壳长度 · 控制图' }],
+    caveats: ['数据口径：均值与 σ 均为未排除测量值的统计结果'],
+    // 白名单外的字段必须继续被剥掉
+    measurements: [{ characteristicName: '外壳长度', values: [50.1, 50.2] }],
+  };
+
+  it('子组序列 / 判异明细 / 图表目录 / 规则清单都活着穿过白名单（否则模型看不到）', () => {
+    const payload = buildPayload('qa', context, false, undefined, '第几子组异常？');
+    const body = payload.messages[1].content;
+
+    expect(payload.scope).toBe('summary');
+    for (const key of ['subgroupConfig', 'ruleSet', 'chartCatalogue', 'caveats', 'characteristics']) {
+      expect(payload.sentFields).toContain(key);
+    }
+    // 真正的关键：请求体里能搜到子组均值序列与判异明细（用户要的就是「第几子组」）
+    expect(body).toContain('"subgroupCount": 12');
+    expect(body).toContain('"subgroupIndices"');
+    expect(body).toContain('"points"');
+    expect(body).toContain('chart:control:外壳长度');
+    // 逐条原始值仍然不发
+    expect(body).not.toContain('measurements');
+  });
+
+  it('system prompt 带公共数据契约：禁止「摘要未提供 / 数据不足 / 无法判断」，并要求落到具体对象', () => {
+    const prompt = buildMessages('qa', {})[0].content;
+    expect(prompt).toMatch(/禁[止止][^。]{0,20}摘要未提供/);
+    expect(prompt).toContain('严禁臆造');
+    expect(prompt).toContain('subgroupIndices');
+    expect(prompt).toContain('chartCatalogue');
+    expect(prompt).toContain('[[chart:');
+  });
+
+  it('白名单导出里含 P8 新字段（设置页/审计可核对发送面）', () => {
+    const whitelist = summaryWhitelist();
+    for (const key of ['chartCatalogue', 'ruleSet', 'subgroupConfig', 'caveats', 'datasetName', 'selectedCharacteristic']) {
+      expect(whitelist).toContain(key);
+    }
+  });
+});
