@@ -194,6 +194,23 @@ describe('runReportAnalysis', () => {
     expect(result.usage.every((u) => u.sentPayloadScope === 'summary')).toBe(true);
   });
 
+  it('★ 模块分析正文里的图表引用标记会被剥离（导出路径不渲染图表，标记不能跟着 Word/Excel出门）', async () => {
+    const chat = vi.fn(async () => okResponse('### 分析\n- 外壳长度第 7 子组均值越 UCL\n\n[[chart:control:外壳长度]]\n\n建议停线复测。'));
+    const result = await runReportAnalysis({
+      model: makeModel(),
+      focusIds: ['capability'],
+      aiConfig: AI_CONFIG,
+      maxTokens: 4096,
+      disableThinking: true,
+      chat: chat as never,
+    });
+    const cpk = result.analyses.find((a) => a.moduleId === 'cpk')!;
+    expect(cpk.ok).toBe(true);
+    expect(cpk.markdown).toContain('第 7 子组均值越 UCL');
+    expect(cpk.markdown).not.toContain('[[chart:');
+    expect(cpk.markdown).not.toContain('chart:control:');
+  });
+
   it('请求选项按设置页透传（maxTokens / disableThinking / signal）', async () => {
     const seen: unknown[] = [];
     const chat = vi.fn(async (_c, _m, options: unknown) => {

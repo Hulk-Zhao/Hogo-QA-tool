@@ -17,6 +17,7 @@
 
 import { chatCompletion } from './aiClient';
 import { buildMessages } from './payloadBuilder';
+import { stripChartRefs } from './chartRefs';
 import { buildUsageEntry, type AiUsageEntry } from './usageLog';
 import {
   focusInstructionText,
@@ -200,7 +201,11 @@ export async function runReportAnalysis(
     const response = await chat(req.aiConfig, messages, baseOptions);
     usage.push(buildUsageEntry('moduleAnalysis', 'summary', response.model, response.ok));
 
-    const text = response.content.trim();
+    // P8：导出路径（Word / Excel / Markdown）没有「图表引用」渲染器 —— 只有聊天气泡有。
+    // 而新的数据契约对**所有功能**都鼓励「需要图形佐证时引用图表 id」，模块分析结果又会
+    // 被原样写进文档。所以这里必须先剥离标记：万一模型真吐了一个，也不能让它跟着文档出门
+    // （导出物里留着 `[[chart:…]]` 对用户就是一段乱码）。
+    const text = stripChartRefs(response.content).trim();
     if (response.ok && text.length > 0) {
       analyses.push({
         moduleId: module.id,
