@@ -29,16 +29,22 @@ export {
 
 export { collectChartImages } from './chartImageCollector';
 
+export { RAW_PREVIEW_LIMIT, PRINT_PREVIEW_LIMIT } from './previewLimits';
+
 export {
   DOCX_MIME,
+  DOCX_CONTENT_WIDTH_EMU,
+  DOCX_MAX_IMAGE_HEIGHT_EMU,
   aiReportDocxFileName,
   buildAiReportDocx,
+  fitImageSizeEmu,
   documentBodyXml,
   parseMarkdownBlocks,
   parseInlineRuns,
   escapeXml,
   type DocBlock,
   type DocRun,
+  type DocxReportOptions,
 } from './docxReport';
 
 export {

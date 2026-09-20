@@ -18,6 +18,7 @@ import { focusLabels } from '@/services/ai/analysisFocus';
 import type { ReportModel } from '@/data/exporter/reportModel';
 import { writeZip, type ZipEntry } from '@/data/exporter/zipStore';
 import { cnOrdinal, toAiSheetRows, type AiReportMeta } from './aiReportDoc';
+import type { ChartImage } from '@/data/exporter/excelImages';
 
 /** Word（.docx）MIME。 */
 export const DOCX_MIME =
@@ -205,6 +206,73 @@ function tableXml(rows: readonly string[][]): string {
   return `<w:tbl><w:tblPr><w:tblW w:w="0" w:type="auto"/>${borders}</w:tblPr>${trs}</w:tbl>`;
 }
 
+/** Word 正文可用宽度（A4 21cm - 左右各 2.25cm 页边距 ≈ 16.5cm）。 */
+export const DOCX_CONTENT_WIDTH_EMU = 5_940_000;
+
+/** 单张图片的最大高度（20cm）：控制图这类竖长图按高度收敛，避免溢出到第三页。 */
+export const DOCX_MAX_IMAGE_HEIGHT_EMU = 7_200_000;
+
+/**
+ * 按最大宽高**等比**收敛图片尺寸（EMU）。
+ *
+ * 为什么不能直接用「像素 × 9525」：打印快照的像素宽可达 2364px，
+ * 按 96dpi 折算就是 22.5cm，比 A4 可打印宽度还宽，Word 会把它缩到页边距内
+ * 但比例不再可控。这里统一按「装进 16.5cm × 20cm」等比缩放，输出可预期。
+ *
+ * @param widthPx PNG 像素宽
+ * @param heightPx PNG 像素高
+ * @returns { cx, cy }（EMU，均 >= 1）
+ */
+export function fitImageSizeEmu(
+  widthPx: number,
+  heightPx: number,
+): { cx: number; cy: number } {
+  if (!Number.isFinite(widthPx) || !Number.isFinite(heightPx) || widthPx <= 0 || heightPx <= 0) {
+    return { cx: DOCX_CONTENT_WIDTH_EMU, cy: DOCX_CONTENT_WIDTH_EMU };
+  }
+  const byWidth = DOCX_CONTENT_WIDTH_EMU / widthPx;
+  const byHeight = DOCX_MAX_IMAGE_HEIGHT_EMU / heightPx;
+  const scale = Math.min(byWidth, byHeight);
+  return {
+    cx: Math.max(1, Math.round(widthPx * scale)),
+    cy: Math.max(1, Math.round(heightPx * scale)),
+  };
+}
+
+/**
+ * 一张内嵌图片的段落（居中 + 图题）。
+ *
+ * @param relId 关系 id（`r:embed`）
+ * @param docPrId drawing 的稳定编号（从 1 起）
+ * @param image 图片（名称 + 像素尺寸）
+ * @param imageIndex 图片序号（用于 pic:cNvPr 名称）
+ * @returns 段落 XML
+ */
+function imageParagraphXml(
+  relId: string,
+  docPrId: number,
+  image: { name: string; widthPx: number; heightPx: number },
+  imageIndex: number,
+): string {
+  const { cx, cy } = fitImageSizeEmu(image.widthPx, image.heightPx);
+  const caption = image.name.trim().length > 0 ? image.name.trim() : `图表 ${imageIndex}`;
+  const drawing =
+    '<w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0" '
+    + 'xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing">'
+    + `<wp:extent cx="${cx}" cy="${cy}"/>`
+    + `<wp:docPr id="${docPrId}" name="图表 ${docPrId}" descr="${escapeXml(caption)}"/>`
+    + '<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">'
+    + '<a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">'
+    + '<pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">'
+    + `<pic:nvPicPr><pic:cNvPr id="${imageIndex}" name="${escapeXml(`image${imageIndex}.png`)}"/>`
+    + '<pic:cNvPicPr/></pic:nvPicPr>'
+    + `<pic:blipFill><a:blip r:embed="${relId}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>`
+    + '<pic:spPr><a:xfrm><a:off x="0" y="0"/>'
+    + `<a:ext cx="${cx}" cy="${cy}"/></a:xfrm>`
+    + '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr>'
+    + '</pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>';
+  return `<w:p><w:pPr><w:jc w:val="center"/></w:pPr>${drawing}</w:p>${paragraph(caption, 'Quote')}`;
+}
 /** 块列表 → OOXML。 */
 function blocksXml(blocks: readonly DocBlock[]): string {
   return blocks
@@ -247,6 +315,7 @@ export function documentBodyXml(
   model: ReportModel,
   analyses: readonly ModuleAnalysis[],
   meta: AiReportMeta,
+  charts: readonly ChartImage[] = [],
 ): string {
   const out: string[] = [];
   const labels = focusLabels(meta.focusIds);
@@ -283,6 +352,14 @@ export function documentBodyXml(
     for (const a of notDone) {
       out.push(paragraph(`• ${a.title}：${a.errorMessage ?? a.skipReason ?? '未知原因'}`, 'ListParagraph'));
     }
+  }
+
+  if (charts.length > 0) {
+    // 图表放在分析之后、免责声明之前：先结论后证据，和报表页的阅读顺序一致。
+    out.push(paragraph('图表', 'Heading1'));
+    charts.forEach((img, i) => {
+      out.push(imageParagraphXml(`rIdImg${i + 1}`, i + 1, img, i + 1));
+    });
   }
 
   out.push(paragraph('———'));
@@ -330,6 +407,9 @@ const CONTENT_TYPES_XML =
   '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
   + '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
   + '<Default Extension="xml" ContentType="application/xml"/>'
+  // png 默认项**无条件**声明：漏了它整张图会被 Word 丢掉（P4 在 Excel 的
+  // drawing content-type 上踩过同一个坑），而未使用它完全无害。
+  + '<Default Extension="png" ContentType="image/png"/>'
   + '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>'
   + '<Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>'
   + '<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>'
@@ -344,11 +424,25 @@ const ROOT_RELS_XML =
   + '<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/>'
   + '</Relationships>';
 
-/** `word/_rels/document.xml.rels`。 */
-const DOC_RELS_XML =
-  '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
-  + '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>'
-  + '</Relationships>';
+/**
+ * `word/_rels/document.xml.rels`：样式关系 + 每张图表图片一条 image 关系。
+ *
+ * 关系 id 用 `rIdImg{i}` 独立前缀，避免与 `rId1`（styles）撞号 ——
+ * 撞号时 Word 会直接判定文件损坏（P4 在 Excel 的 content-type 上踩过同类坑）。
+ *
+ * @param imageCount 图片张数
+ * @returns rels XML
+ */
+function docRelsXml(imageCount: number): string {
+  const imageRels = Array.from({ length: imageCount }, (_, i) =>
+    `<Relationship Id="rIdImg${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/image${i + 1}.png"/>`).join('');
+  return (
+    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+    + '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>'
+    + imageRels
+    + '</Relationships>'
+  );
+}
 
 /** `docProps/app.xml`。 */
 const APP_XML =
@@ -386,21 +480,42 @@ function enc(text: string): Uint8Array {
  * @param meta 元信息
  * @returns .docx 二进制
  */
+/** Word 导出选项。 */
+export interface DocxReportOptions {
+  /** 图表 PNG（来自页面画布采集，见 `chartImageCollector`）；不传 = 只出文字。 */
+  charts?: readonly ChartImage[];
+}
+
+/**
+ * 生成「AI 分析报表」.docx 二进制。
+ *
+ * @param model 报表中间模型
+ * @param analyses 逐模块分析
+ * @param meta 元信息
+ * @param options 选项（图表图片）
+ * @returns .docx 二进制
+ */
 export function buildAiReportDocx(
   model: ReportModel,
   analyses: readonly ModuleAnalysis[],
   meta: AiReportMeta,
+  options: DocxReportOptions = {},
 ): ArrayBuffer {
+  const charts = options.charts ?? [];
   const documentXml =
     XML_HEADER
-    + '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>'
-    + documentBodyXml(model, analyses, meta)
+    // xmlns:r 必须声明在根上：图表用 `r:embed` 引用图片关系，前缀未声明时
+    // Word 会直接判定文件损坏（这是 XML 硬性要求，不是可选优化）。
+    + '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" '
+    + 'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><w:body>'
+    + documentBodyXml(model, analyses, meta, charts)
     + '</w:body></w:document>';
   const entries: ZipEntry[] = [
     { name: '[Content_Types].xml', data: enc(XML_HEADER + CONTENT_TYPES_XML) },
     { name: '_rels/.rels', data: enc(XML_HEADER + ROOT_RELS_XML) },
     { name: 'word/document.xml', data: enc(documentXml) },
-    { name: 'word/_rels/document.xml.rels', data: enc(XML_HEADER + DOC_RELS_XML) },
+    { name: 'word/_rels/document.xml.rels', data: enc(XML_HEADER + docRelsXml(charts.length)) },
+    ...charts.map((img, i) => ({ name: `word/media/image${i + 1}.png`, data: img.png })),
     { name: 'word/styles.xml', data: enc(XML_HEADER + STYLES_XML) },
     { name: 'docProps/core.xml', data: enc(XML_HEADER + coreXml(model, meta)) },
     { name: 'docProps/app.xml', data: enc(XML_HEADER + APP_XML) },

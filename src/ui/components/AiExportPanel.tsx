@@ -258,11 +258,14 @@ export default function AiExportPanel({
     }
     try {
       const usedModel = analyses.find((a) => a.ok)?.model ?? aiConfig.model;
-      const fileName = exportAiReportWord(model, analyses, {
-        model: usedModel,
-        focusIds,
-        generatedAt: new Date().toISOString(),
-      });
+      const fileName = exportAiReportWord(
+        model,
+        analyses,
+        { model: usedModel, focusIds, generatedAt: new Date().toISOString() },
+        downloadBlob,
+        // 图表 PNG 来自页面画布（与 Excel「图表」sheet 同一份采集器）。
+        { charts: collectChartImages() },
+      );
       pushToast(`已导出 Word 报表：${fileName}`, 'success');
     } catch (e) {
       pushToast(`导出失败：${e instanceof Error ? e.message : String(e)}`, 'error');

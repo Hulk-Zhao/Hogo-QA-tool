@@ -73,6 +73,17 @@ function makeDataset(): Dataset {
   };
 }
 
+/** 只造 1 个特性 × 10 条测量、无不良记录：原始明细行数低于打印上限。 */
+function makeSmallDataset(): Dataset {
+  const base = makeDataset();
+  const first = base.characteristics[0];
+  return {
+    ...base,
+    characteristics: [{ ...first, measurements: first.measurements.slice(0, 10) }],
+    defectRecords: [],
+  };
+}
+
 function renderPage(): void {
   render(
     <MemoryRouter>
@@ -185,6 +196,26 @@ describe('ReportPage —— 导出范围 7 项（表格 + 图表）', () => {
     expect(screen.getByTestId('raw-dim-truncated')).toBeInTheDocument();
     const rows = within(table).getAllByRole('row');
     expect(rows.length).toBe(201); // 1 表头 + 200 数据行
+  });
+
+  it('★ 打印态限量：纸上写明「打印仅含前 24 行」，替代此前的静默截断（P6-B）', () => {
+    renderPage();
+    // 360 行 > PRINT_PREVIEW_LIMIT → 提示必须存在，且行数用常量渲染而非写死。
+    const dimNote = screen.getByTestId('print-cap-note-raw-dimensions');
+    expect(dimNote.textContent).toContain('共 360 行，打印仅含前 24 行');
+    expect(dimNote.textContent).toContain('完整数据请用「导出 Excel」');
+    // 不良记录只有 6 条 ≤ 上限 → 不给多话的提示。
+    expect(screen.queryByTestId('print-cap-note-raw-defects')).not.toBeInTheDocument();
+    // 屏幕态隐藏：只有打印样式（@media print）才显示，避免与「仅显示前 200 行」重复。
+    expect(getComputedStyle(dimNote).display).toBe('none');
+  });
+
+  it('原始行数不超过打印上限时不给截断提示', () => {
+    useProjectStore.getState().setDataset(makeSmallDataset());
+    renderPage();
+    expect(screen.getByTestId('report-raw-dimensions-table')).toBeInTheDocument();
+    expect(screen.queryByTestId('print-cap-note-raw-dimensions')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('raw-dim-truncated')).not.toBeInTheDocument();
   });
 
   it('全不勾选 → 打印按钮禁用并给出提示', () => {

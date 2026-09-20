@@ -25,6 +25,14 @@ import type { ReportModel } from '@/data/exporter/reportModel';
 
 const spies = vi.hoisted(() => ({ md: vi.fn(), excel: vi.fn(), word: vi.fn() }));
 
+/** 图表采集器桩：让「Word 导出是否带上图表 PNG」可被断言。 */
+const chartStub = vi.hoisted(() => ({
+  name: '控制图（外壳长度）',
+  png: new Uint8Array([0x89, 0x50, 0x4e, 0x47]),
+  widthPx: 100,
+  heightPx: 50,
+}));
+
 vi.mock('@/services/report', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/services/report')>();
   return {
@@ -42,7 +50,7 @@ vi.mock('@/services/report', async (importOriginal) => {
       spies.word(...args);
       return '测试项目_2026-09-19_AI分析.docx';
     },
-    collectChartImages: () => [],
+    collectChartImages: () => [chartStub],
   };
 });
 
@@ -229,15 +237,23 @@ describe('AiExportPanel', () => {
 
     fireEvent.click(screen.getByTestId('ai-export-word'));
     await waitFor(() => expect(spies.word).toHaveBeenCalledTimes(1));
-    const [model, analyses, meta] = spies.word.mock.calls[0] as [
+    const args = spies.word.mock.calls[0] as [
       ReportModel,
       unknown[],
       { model: string; focusIds: string[] },
+      unknown,
+      { charts: unknown[] },
     ];
+    expect(args).toHaveLength(5);
+    const [model, analyses, meta] = args;
     expect(model.projectName).toBe('测试项目');
     expect(analyses).toHaveLength(2);
     expect(meta.model).toBe('qwen3.5:9b');
     expect(meta.focusIds).toEqual(['stability', 'capability', 'improvement']);
+    // 第 4 参是保存函数（用例注入的是真 downloadBlob，这里只校验形状）
+    expect(typeof args[3]).toBe('function');
+    // 第 5 参必须带上图表 PNG：漏掉它就退回「只有文字、没有图片」
+    expect(args[4]).toEqual({ charts: [chartStub] });
     const toasts = useUiStore.getState().toasts.map((t) => t.message);
     expect(toasts.some((m) => m.includes('已导出 Word 报表：测试项目_2026-09-19_AI分析.docx'))).toBe(true);
   });

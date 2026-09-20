@@ -31,7 +31,12 @@ import {
   buildAiReportMarkdown,
   type AiReportMeta,
 } from './aiReportDoc';
-import { aiReportDocxFileName, buildAiReportDocx, DOCX_MIME } from './docxReport';
+import {
+  aiReportDocxFileName,
+  buildAiReportDocx,
+  DOCX_MIME,
+  type DocxReportOptions,
+} from './docxReport';
 import type { ModuleAnalysis } from '@/services/ai/reportAnalysis';
 
 /*
@@ -171,6 +176,7 @@ export function exportAiReportMarkdown(
  * @param analyses 逐模块分析结果
  * @param meta 元信息（模型 / 方向 / 生成时间）
  * @param save 保存函数（默认浏览器下载）
+ * @param options 选项（图表 PNG；不传 = 只出文字）
  * @returns 文件名
  */
 export function exportAiReportWord(
@@ -178,8 +184,9 @@ export function exportAiReportWord(
   analyses: readonly ModuleAnalysis[],
   meta: AiReportMeta,
   save: SaveBlobFn = downloadBlob,
+  options: DocxReportOptions = {},
 ): string {
-  const buffer = buildAiReportDocx(model, analyses, meta);
+  const buffer = buildAiReportDocx(model, analyses, meta, options);
   const fileName = aiReportDocxFileName(model);
   save(buffer, fileName, DOCX_MIME);
   return fileName;

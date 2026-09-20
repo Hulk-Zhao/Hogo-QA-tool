@@ -61,6 +61,8 @@ import {
   exportExcelReportDetailed,
   hasAnyExportOption,
   printReport,
+  PRINT_PREVIEW_LIMIT,
+  RAW_PREVIEW_LIMIT,
   type ExportOptions,
 } from '@/services/report';
 import type {
@@ -77,14 +79,6 @@ interface ScaleSummary {
   defectTypeCount: number;
 }
 
-/**
- * 原始明细表的最大渲染行数。
- *
- * 理由：`DataTable` 未做虚拟滚动，而原始尺寸在 20 万行上限下逐行渲染会直接
- * 冻结浏览器（连打印对话框都弹不出来）。日报的用途是汇总，故预览取前 200 行
- * 并在表头明确标注「仅显示前 N 行，完整数据请导出 Excel」，避免误导。
- */
-const RAW_PREVIEW_LIMIT = 200;
 
 /** 导出项中文名（顺序与 EXPORT_OPTION_KEYS 一致）。 */
 const OPTION_LABEL: Record<keyof ExportOptions, string> = {
@@ -588,7 +582,17 @@ export default function ReportPage(): ReactElement {
                 共 {rawDimensions.length} 行，此处仅显示前 {RAW_PREVIEW_LIMIT} 行；完整数据请导出 Excel。
               </Typography>
             ) : null}
-            <div className="print-table">
+            {rawDimensions.length > PRINT_PREVIEW_LIMIT ? (
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                data-testid="print-cap-note-raw-dimensions"
+                sx={{ display: 'none', '@media print': { display: 'block' } }}
+              >
+                共 {rawDimensions.length} 行，打印仅含前 {PRINT_PREVIEW_LIMIT} 行；完整数据请用「导出 Excel」。
+              </Typography>
+            ) : null}
+            <div className="print-table print-table-split">
               <DataTable
                 columns={rawDimensionColumns}
                 rows={rawDimensions.slice(0, RAW_PREVIEW_LIMIT)}
@@ -609,7 +613,17 @@ export default function ReportPage(): ReactElement {
             <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>
               原始不良预览（sheet 4）
             </Typography>
-            <div className="print-table">
+            {rawDefects.length > PRINT_PREVIEW_LIMIT ? (
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                data-testid="print-cap-note-raw-defects"
+                sx={{ display: 'none', '@media print': { display: 'block' } }}
+              >
+                共 {rawDefects.length} 行，打印仅含前 {PRINT_PREVIEW_LIMIT} 行；完整数据请用「导出 Excel」。
+              </Typography>
+            ) : null}
+            <div className="print-table print-table-split">
               <DataTable
                 columns={rawDefectColumns}
                 rows={rawDefects}

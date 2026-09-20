@@ -172,6 +172,12 @@ async function main() {
 
     // 渲染 PDF 每页并量墨迹（真实观感，已合成 alpha）
     const outdir = ROOT + '/.probe/p4-render-' + mode;
+    // ⚠️ 先清空渲染目录：存量 p5.png 会让 4 页的 PDF 被数成 5 页（P6-B 求证的假象）。
+    if (fs.existsSync(outdir)) {
+      for (const stale of fs.readdirSync(outdir)) {
+        if (stale.endsWith('.png')) fs.unlinkSync(path.join(outdir, stale));
+      }
+    }
     execFileSync(PY, [ROOT + '/.workbuddy/tmp/render.py', pdfPath, outdir, '120'], { encoding: 'utf8' });
     const pageFiles = fs.readdirSync(outdir).filter((f) => /^p\d+\.png$/.test(f)).sort((a, b) => Number(a.slice(1, -4)) - Number(b.slice(1, -4)));
     const inkByPage = JSON.parse(execFileSync(PY, [ROOT + '/.workbuddy/tmp/ink.py'].concat(

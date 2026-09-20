@@ -1,0 +1,203 @@
+{
+ "mode": "p6-pages",
+ "steps": [
+  "OK: 应用加载",
+  "OK: 导入页",
+  "OK: 粘贴框",
+  "OK: 解析完成",
+  "OK: 能力页",
+  "OK: 报表页"
+ ],
+ "pages": [
+  {
+   "page": 1,
+   "sizePt": [
+    595,
+    841.9
+   ],
+   "textBlocks": 32,
+   "images": 0,
+   "contentTopPt": 43.6,
+   "contentBottomPt": 801.9,
+   "printablePt": [
+    34,
+    807.9
+   ],
+   "usedRatio": 0.9922,
+   "trailingGapPt": 6,
+   "inkRatio": 0.1233,
+   "coloredRatio": 0.0367,
+   "png": "E:/tools/Hogo-QA-tool/.probe/p6-render\\p1.png"
+  },
+  {
+   "page": 2,
+   "sizePt": [
+    595,
+    841.9
+   ],
+   "textBlocks": 2,
+   "images": 2,
+   "contentTopPt": 86.9,
+   "contentBottomPt": 749,
+   "printablePt": [
+    34,
+    807.9
+   ],
+   "usedRatio": 0.9238,
+   "trailingGapPt": 58.9,
+   "inkRatio": 0.2583,
+   "coloredRatio": 0.0199,
+   "png": "E:/tools/Hogo-QA-tool/.probe/p6-render\\p2.png"
+  },
+  {
+   "page": 3,
+   "sizePt": [
+    595,
+    841.9
+   ],
+   "textBlocks": 12,
+   "images": 1,
+   "contentTopPt": 39.8,
+   "contentBottomPt": 776.7,
+   "printablePt": [
+    34,
+    807.9
+   ],
+   "usedRatio": 0.9597,
+   "trailingGapPt": 31.2,
+   "inkRatio": 0.2272,
+   "coloredRatio": 0.1788,
+   "png": "E:/tools/Hogo-QA-tool/.probe/p6-render\\p3.png"
+  },
+  {
+   "page": 4,
+   "sizePt": [
+    595,
+    841.9
+   ],
+   "textBlocks": 22,
+   "images": 0,
+   "contentTopPt": 39.9,
+   "contentBottomPt": 695.7,
+   "printablePt": [
+    34,
+    807.9
+   ],
+   "usedRatio": 0.8551,
+   "trailingGapPt": 112.2,
+   "inkRatio": 0.0516,
+   "coloredRatio": 0,
+   "png": "E:/tools/Hogo-QA-tool/.probe/p6-render\\p4.png"
+  }
+ ],
+ "pdfImages": {
+  "pages": 4,
+  "pageW": 595,
+  "images": [
+   {
+    "page": 2,
+    "xref": 24,
+    "px": "2245x1500",
+    "placedMm": 185.6,
+    "placedPtW": 526.2,
+    "effDpi": 307.2,
+    "widthCoverage": 0.884,
+    "overflow": false
+   },
+   {
+    "page": 2,
+    "xref": 26,
+    "px": "2245x1050",
+    "placedMm": 185.6,
+    "placedPtW": 526.2,
+    "effDpi": 307.2,
+    "widthCoverage": 0.884,
+    "overflow": false
+   },
+   {
+    "page": 3,
+    "xref": 31,
+    "px": "2245x1600",
+    "placedMm": 185.6,
+    "placedPtW": 526.2,
+    "effDpi": 307.2,
+    "widthCoverage": 0.884,
+    "overflow": false
+   }
+  ],
+  "pageTextExtents": [
+   {
+    "page": 1,
+    "blocks": 32,
+    "textX0": 33.8,
+    "textX1": 537.8
+   },
+   {
+    "page": 2,
+    "blocks": 2,
+    "textX0": 33.8,
+    "textX1": 70.5
+   },
+   {
+    "page": 3,
+    "blocks": 12,
+    "textX0": 34.5,
+    "textX1": 536.3
+   },
+   {
+    "page": 4,
+    "blocks": 22,
+    "textX0": 46.5,
+    "textX1": 536.3
+   }
+  ]
+ },
+ "asserts": [
+  {
+   "name": "真实路径确实派发了 beforeprint",
+   "pass": true,
+   "detail": "beforeprint > mq-change(true) > afterprint > mq-change(false)"
+  },
+  {
+   "name": "打印快照同步就位（打印期画布数 >= 3）",
+   "pass": true,
+   "detail": "during=5"
+  },
+  {
+   "name": "PDF 内嵌 3 张位图（控制图 X / 控制图 R / 能力图）",
+   "pass": true,
+   "detail": "n=3"
+  },
+  {
+   "name": "每张位图有效分辨率 >= 250 DPI",
+   "pass": true,
+   "detail": "min=307.2 DPI"
+  },
+  {
+   "name": "图表铺满可打印区 >= 80%",
+   "pass": true,
+   "detail": "min=99.9%"
+  },
+  {
+   "name": "没有全空白页（每页墨迹 > 0.002）",
+   "pass": true,
+   "detail": "min=0.0516"
+  },
+  {
+   "name": "页数 <= 4（不许因为分页改动变多）",
+   "pass": true,
+   "detail": "pages=4"
+  },
+  {
+   "name": "非末页不留半页空白（每页至少用掉 80% 可打印高度）",
+   "pass": true,
+   "detail": "p1=99.2% p2=92.4% p3=96.0%"
+  },
+  {
+   "name": "末页不是空尾页（墨迹 > 0.005）",
+   "pass": true,
+   "detail": "lastInk=0.0516"
+  }
+ ],
+ "ok": true
+}
