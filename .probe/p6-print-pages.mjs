@@ -7,7 +7,11 @@
  *      是 2026-09-19 的产物），于是 4 页被报成 5 页，看起来像「页数在 4~5 之间浮动」。
  * 本探针每次先清空渲染目录，再按「文字 bbox + 图片 bbox」量每页真正用到哪一行。
  *
- * 用法：node .probe/p6-print-pages.mjs  → .probe/p6-print-pages.json / .probe/p6-print.pdf
+ * 用法：
+   node .probe/p6-print-pages.mjs            → 打 dist-server（开发服务器产物）
+   node .probe/p6-print-pages.mjs offline    → 打 dist（用户双击的离线单文件）
+ * 为什么要打 offline：用户实际双击的是 `dist/index.html`，打印样式在两套产物里
+   必须同样生效；offline 用 `vite preview --outDir dist` 起本地 http 服务模拟同级环境。
  */
 import { spawn, execFileSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -16,12 +20,15 @@ import path from 'node:path';
 
 const CHROME = 'C:/Users/22953/AppData/Local/Google/Chrome/Application/chrome.exe';
 const PY = 'C:/Users/22953/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe';
-const APP_PORT = 8803;
-const CDP_PORT = 9483;
+/** offline 模式：打 dist 单文件产物（端口与 server 模式错开）。 */
+const OFFLINE = (process.argv[2] || '') === 'offline';
+const OUT_DIR = OFFLINE ? 'dist' : 'dist-server';
+const APP_PORT = OFFLINE ? 8805 : 8803;
+const CDP_PORT = OFFLINE ? 9485 : 9483;
 const APP_URL = 'http://127.0.0.1:' + APP_PORT + '/';
 const ROOT = 'E:/tools/Hogo-QA-tool';
-const PDF = ROOT + '/.probe/p6-print.pdf';
-const RENDER = ROOT + '/.probe/p6-render';
+const PDF = ROOT + '/.probe/p6-print-' + (OFFLINE ? 'offline' : 'server') + '.pdf';
+const RENDER = ROOT + '/.probe/p6-render' + (OFFLINE ? '-offline' : '');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function buildCsv() {
@@ -89,11 +96,12 @@ if (window.matchMedia) {
 async function main() {
   const profile = path.join(os.tmpdir(), 'hogo-p6print-' + Date.now());
   fs.mkdirSync(profile, { recursive: true });
-  const report = { mode: 'p6-pages', steps: [], pages: null, pdfImages: null, asserts: [], ok: null };
+  const mode = OFFLINE ? 'p6-print-pages-offline' : 'p6-print-pages';
+  const report = { mode, steps: [], pages: null, pdfImages: null, asserts: [], ok: null };
   const chrome = spawn(CHROME, ['--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check', '--no-proxy-server', '--remote-allow-origins=*', '--remote-debugging-port=' + CDP_PORT, '--user-data-dir=' + profile, 'about:blank'], { stdio: 'ignore' });
   let preview;
   try {
-    preview = spawn(process.execPath, ['node_modules/vite/bin/vite.js', 'preview', '--outDir', 'dist-server', '--host', '127.0.0.1', '--port', String(APP_PORT), '--strictPort'], { cwd: ROOT, stdio: 'ignore' });
+    preview = spawn(process.execPath, ['node_modules/vite/bin/vite.js', 'preview', '--outDir', OUT_DIR, '--host', '127.0.0.1', '--port', String(APP_PORT), '--strictPort'], { cwd: ROOT, stdio: 'ignore' });
     await waitHttp(APP_URL, 30000);
     await waitHttp('http://127.0.0.1:' + CDP_PORT + '/json/version', 20000);
     const list = await (await fetch('http://127.0.0.1:' + CDP_PORT + '/json/list')).json();
@@ -163,7 +171,7 @@ async function main() {
   } finally {
     try { chrome.kill(); } catch { /* */ }
     try { if (preview) preview.kill(); } catch { /* */ }
-    fs.writeFileSync(ROOT + '/.probe/p6-print-pages.json', JSON.stringify(report, null, 1), 'utf8');
+    fs.writeFileSync(ROOT + '/.probe/p6-print-pages' + (OFFLINE ? '-offline' : '') + '.json', JSON.stringify(report, null, 1), 'utf8');
     console.log(JSON.stringify({ ok: report.ok, error: report.error || null, asserts: report.asserts.map((a) => (a.pass ? 'PASS ' : 'FAIL ') + a.name + ' :: ' + String(a.detail)) }, null, 1));
   }
 }
