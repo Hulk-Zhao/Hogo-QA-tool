@@ -188,7 +188,19 @@ node .probe/p9-real-llm.mjs
 # 方式二：免环境变量（推荐）——把 key 写进仓库根目录的 .secrets/deepseek.key
 #（该目录已在 .gitignore 中，不会进版本库）
 node .probe/p9-real-llm.mjs
+
+# 方式三：写进 Windows 用户变量（持久化；探针会直接读注册表 HKCU\Environment，
+# 所以刚 setx 完**不用重启终端**也能被读到）
+setx DEEPSEEK_API_KEY "sk-你的key"
+node .probe/p9-real-llm.mjs
 ```
+
+> ⚠️ 这三处**只对探针有效**：浏览器页面读不到 Windows 环境变量，应用里的 key 必须在
+> 「设置」页的「API Key」里填（只存本机 localStorage）。想让**应用**也连上 DeepSeek，
+> 别忘了这一步 —— 光加系统环境变量，界面依旧是离线/未配置状态。
+>
+> 另注：在「环境变量」对话框里新建变量后**必须点「确定」**才写入注册表。只点「取消」或直接关窗口，
+> 列表里看着有、实际没保存（本机实测踩过）。探针在找不到 key 时会自己判断属于哪一种并打印出来。
 
 它会依次做四件事：① 列出服务端**真实可用**的模型名（与你填的对照，不一致会明确告警）；
 ② 预检一次 `chat/completions`（「关闭模型思考」开 / 关各打一次，把服务端原文打出来）；

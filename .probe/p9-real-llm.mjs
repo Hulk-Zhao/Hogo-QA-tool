@@ -8,6 +8,8 @@
  * 用法（PowerShell，二选一）：
  *   $env:DEEPSEEK_API_KEY = 'sk-你的key'; node .probe/p9-real-llm.mjs
  *   或者把 key 单独写进 E:\tools\Hogo-QA-tool\.secrets\deepseek.key（该目录已在 .gitignore 中）
+ *   再不济会自动回退读 Windows 用户变量（注册表 HKCU\Environment）——为了区分
+ *   「对话框里没点确定 = 没保存」与「保存了但当前终端没继承」这两种情况。
  *
  * 可选环境变量：
  *   DEEPSEEK_MODEL     默认 deepseek-chat（**不是** deepseek-flash；第 1 步会列出服务端真实模型名）
@@ -24,7 +26,7 @@
  * 注意：本探针刻意用 `--no-proxy-server` 直连（你机器的系统代理是 iKuuuVPN 127.0.0.1:7890）。
  * 这样探针结果是**确定**的：探针绿而你的界面仍报「连接被切断」，就指向 VPN / 代理这一层。
  */
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -45,23 +47,62 @@ const DODGE_PATTERNS = [
 /** 全面诊断必须齐全的五节。 */
 const SECTIONS = ['总体结论', '过程能力盘点', '主要问题与疑似根因', '改善行动', '数据局限与风险提示'];
 
-/** 读 key：环境变量优先，其次仓库外置的 .secrets/deepseek.key。 */
+/**
+ * 读 Windows「用户变量」里持久化的环境变量（注册表 `HKCU\Environment`）。
+ *
+ * 为什么要直连注册表：变量加进 Windows 对话框后，**已经开着的**终端 / 应用（含本探针的父进程）
+ * 不会继承新变量 —— 只读 `process.env` 会把「我明明加了」错判成「你没配」。
+ * 读注册表就能把两件事分开：
+ *   ① 变量**根本没保存**（对话框里点了「取消」，或新建后没点「确定」）→ 注册表里没有；
+ *   ② 保存了但当前进程没继承（已开着的终端 / 应用要重启）→ 注册表里有、`process.env` 里没有。
+ *
+ * @param name 变量名
+ * @returns 命中且非空时返回值，否则 null
+ */
+function readUserEnvFromRegistry(name) {
+  const out = spawnSync('reg', ['query', 'HKCU\\Environment', '/v', name], { encoding: 'utf8' });
+  if (!out || out.status !== 0 || typeof out.stdout !== 'string') {
+    return null;
+  }
+  // reg 输出形如「名字    REG_SZ    值」；API key 是纯 ASCII，按 UTF-8 读即可。
+  const m = /REG_(?:SZ|EXPAND_SZ)\s+([^\r\n]*)/.exec(out.stdout);
+  const value = m ? m[1].trim() : '';
+  return value.length > 0 ? value : null;
+}
+
+/** Windows 用户变量里是否有这个名字（不看值，只用于诊断「没保存」还是「没继承」）。 */
+function userEnvExists(name) {
+  const out = spawnSync('reg', ['query', 'HKCU\\Environment', '/v', name], { encoding: 'utf8' });
+  return !!out && out.status === 0;
+}
+
+/**
+ * 读 key，三个来源按优先级：进程环境变量 → `.secrets/deepseek.key` → Windows 用户变量。
+ *
+ * @returns key（空串=没配）、来源说明、是否只来自注册表
+ */
 function readKey() {
   const fromEnv = (process.env.DEEPSEEK_API_KEY || process.env.HOGO_LLM_KEY || '').trim();
   if (fromEnv.length > 0) {
-    return { key: fromEnv, source: '环境变量' };
+    return { key: fromEnv, source: '进程环境变量', fromRegistryOnly: false };
   }
   const file = path.join(ROOT, '.secrets', 'deepseek.key');
   try {
     const text = fs.readFileSync(file, 'utf8').trim();
     if (text.length > 0) {
-      return { key: text, source: file };
+      return { key: text, source: file, fromRegistryOnly: false };
     }
   } catch { /* 没这个文件 */ }
-  return { key: '', source: '' };
+  for (const name of ['DEEPSEEK_API_KEY', 'HOGO_LLM_KEY']) {
+    const fromReg = readUserEnvFromRegistry(name);
+    if (fromReg) {
+      return { key: fromReg, source: 'Windows 用户变量 ' + name, fromRegistryOnly: true };
+    }
+  }
+  return { key: '', source: '', fromRegistryOnly: false };
 }
 
-const { key: KEY, source: KEY_SOURCE } = readKey();
+const { key: KEY, source: KEY_SOURCE, fromRegistryOnly: KEY_FROM_REGISTRY } = readKey();
 const BASE = (process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com/v1').replace(/\/+$/, '');
 const MODEL = (process.env.DEEPSEEK_MODEL || 'deepseek-chat').trim();
 
@@ -170,12 +211,26 @@ async function main() {
   const report = { mode: 'p9-real-llm', model: MODEL, base: BASE, keySource: KEY_SOURCE, asserts: [], ok: null };
 
   if (KEY.length === 0) {
-    console.log('SKIP  没有配 key：探针只从环境变量或 .secrets/deepseek.key 读，不碰仓库其它文件。');
-    console.log('      PowerShell:  $env:DEEPSEEK_API_KEY = \'sk-你的key\'; node .probe/p9-real-llm.mjs');
-    console.log('      或写入：     E:\\tools\\Hogo-QA-tool\\.secrets\\deepseek.key（已 gitignore）');
+    console.log('SKIP  没有配 key。探针按「进程环境变量 → .secrets/deepseek.key → Windows 用户变量」三处找，不碰仓库其它文件。');
+    console.log('      1) 写文件（最快，且不需要重启任何东西）：E:\\tools\\Hogo-QA-tool\\.secrets\\deepseek.key');
+    console.log('      2) 临时给本会话：  $env:DEEPSEEK_API_KEY = \'sk-你的key\'; node .probe/p9-real-llm.mjs');
+    console.log('      3) Windows「环境变量」对话框新建用户变量 DEEPSEEK_API_KEY —— **必须点「确定」**才落盘。');
+    if (!userEnvExists('DEEPSEEK_API_KEY') && !userEnvExists('HOGO_LLM_KEY')) {
+      console.log('      诊断：注册表 HKCU\\Environment 里**确实没有** DEEPSEEK_API_KEY ——');
+      console.log('            也就是说它在 Windows 层面还没保存（对话框列表里看得到 ≠ 已保存；');
+      console.log('            只点「取消」或直接关窗口都不会写入注册表）。');
+    } else {
+      console.log('      诊断：注册表里**有**这个变量，但当前进程没继承到（已开着的终端 / 应用需重启）。');
+    }
+    console.log('      注意：这个变量只对**探针**有用 —— 浏览器页面读不到 Windows 环境变量，');
+    console.log('            应用里的 key 要在「设置」页填（只存本机 localStorage）。');
     process.exit(2);
   }
   console.log('key 来源：' + KEY_SOURCE + '（长度 ' + KEY.length + '，不回显）');
+  if (KEY_FROM_REGISTRY) {
+    console.log('      注意：它来自 Windows 用户变量，本进程环境里并没有（已开着的终端继承不到）。');
+    console.log('      另外这只对探针有效：应用里的 key 必须在「设置」页填（页面读不到 Windows 环境变量）。');
+  }
 
   const check = (name, pass, detail) => report.asserts.push({ name, pass: !!pass, detail });
 
