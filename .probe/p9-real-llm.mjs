@@ -12,7 +12,8 @@
  *   「对话框里没点确定 = 没保存」与「保存了但当前终端没继承」这两种情况。
  *
  * 可选环境变量：
- *   DEEPSEEK_MODEL     默认 deepseek-chat（**不是** deepseek-flash；第 1 步会列出服务端真实模型名）
+ *   DEEPSEEK_MODEL     默认 deepseek-flash（2026-09-21 实测 /models 只列 deepseek-flash 与 deepseek-v4-pro；
+ *                      第 1 步会列出真实清单。deepseek-chat 会被当别名接受但不在清单里，别依赖）
  *   DEEPSEEK_BASE_URL  默认 https://api.deepseek.com/v1
  *
  * 三步：
@@ -104,7 +105,7 @@ function readKey() {
 
 const { key: KEY, source: KEY_SOURCE, fromRegistryOnly: KEY_FROM_REGISTRY } = readKey();
 const BASE = (process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com/v1').replace(/\/+$/, '');
-const MODEL = (process.env.DEEPSEEK_MODEL || 'deepseek-chat').trim();
+const MODEL = (process.env.DEEPSEEK_MODEL || 'deepseek-flash').trim();
 
 class CDP {
   constructor(ws) {
@@ -238,10 +239,15 @@ async function main() {
   const ids = await listModels(report);
   console.log('— 服务端可用模型：' + (ids.length > 0 ? ids.join(', ') : '（未能列出，见 .probe/p9-real-llm.json 原文）'));
   if (ids.length > 0) {
-    check('设置里的模型名在服务端真实存在', ids.includes(MODEL), 'model=' + MODEL + ' 可用=' + ids.join('/'));
+    const listed = ids.includes(MODEL);
+    // 不在清单里不等于不能用：2026-09-21 实测 deepseek-chat / deepseek-reasoner 会被**当别名接受**
+    // （返回体 model 回显成 deepseek-flash）。所以这条只做忠实告知，真正的判据是下面「真 key 能打通」。
+    check('设置里的模型名在服务端清单内（不在清单但能打通会单独说明）', listed,
+      'model=' + MODEL + ' 可用=' + ids.join('/') + (listed ? '' : ' → 别名/未列出'));
     if (!ids.includes(MODEL)) {
-      console.log('  ✗「' + MODEL + '」不在服务端清单里 —— 这正是 HTTP 400 的头号原因；');
-      console.log('    请把「设置」页模型名改成上面清单里的一个（官方通常是 deepseek-chat / deepseek-reasoner）。');
+      console.log('  ⚠「' + MODEL + '」不在服务端清单里。它可能被当**别名**接受（实测 deepseek-chat 会被接受、');
+      console.log('    返回体 model 回显 deepseek-flash），也可能直接 400 model not found —— 看下面预检结果。');
+      console.log('    稳妥做法：把「设置」页模型名改成清单里的一个（' + ids.join(' / ') + '）。');
     }
   }
 
@@ -351,7 +357,10 @@ async function main() {
     const qaReply = (await cdp.eval(BUBBLES_EXPR)).pop() || '';
     report.qaReply = qaReply;
     check('问答：真模型回了内容', qaReply.trim().length > 20, 'len=' + qaReply.length);
-    check('问答：点名了具体子组编号', /第\s*7\s*个子组|子组\s*7|subgroup\s*7/i.test(qaReply));
+    // 口径：「点名第 7 个子组」这件事，模型写成「第 7 个子组 / 第 7 点 / 子组 7 / 7 号子组」都算做到。
+    // （2026-09-21 实测 deepseek-flash 用的是「第 7 点」—— 那是合格回答，判红就变成测措辞而不是测能力。）
+    check('问答：点名了具体子组编号（第 7 个）',
+      /第\s*7\s*个?\s*(?:子组|点|组)|(?:子组|组)\s*7\b|7\s*号子组|subgroup\s*7/i.test(qaReply));
     check('问答：给出了判异规则编号（W1…W4 / N1…N8）', /W[1-4]|N[1-8]/.test(qaReply));
     const qaDodge = DODGE_PATTERNS.filter((p) => qaReply.includes(p));
     check('问答：没有「摘要未提供 / 数据不足」这类推诿话术', qaDodge.length === 0, qaDodge.join('、'));
@@ -382,6 +391,23 @@ async function main() {
     const dxDodge = DODGE_PATTERNS.filter((p) => dxText.includes(p));
     check('全面诊断：没有「摘要未提供 / 数据不足」这类推诿话术', dxDodge.length === 0, dxDodge.join('、'));
     check('全面诊断：报告里没有露出 [[chart:…]] 标记', dxText.indexOf('[[chart:') < 0);
+    // 只剥离标记是不够的：契约要求「需要图形佐证时写 [[chart:<id>]]」，所以面板里应当**真的画出图**。
+    // 判据取自持久化 store 的**原文**（剥离前），这样「模型这次没引用图」与「引用了但没画出来」能分开。
+    const rawDiag = await cdp.eval(`(function(){
+      try {
+        var r = JSON.parse(localStorage.getItem('hogo-qa-diagnosis') || 'null');
+        return (r && (r.content || (r.state && r.state.fullDiagnosis && r.state.fullDiagnosis.content))) || '';
+      } catch (e) { return ''; }
+    })()`);
+    const panelCharts = await cdp.eval(`(function(){
+      var card = document.querySelector('[data-testid="ai-full-diagnosis"]');
+      if (!card) { return 0; }
+      return card.querySelectorAll('[data-testid="ai-chart-refs"] [data-testid$="-chart"]').length;
+    })()`);
+    const diagRefCount = (String(rawDiag).match(/\[\s*chart\s*:/g) || []).length;
+    check('全面诊断：引用到的图表真的画出来了（不是只剩文字）',
+      diagRefCount === 0 || Number(panelCharts) > 0,
+      'store 里引用 ' + diagRefCount + ' 处 → 面板渲染 ' + panelCharts + ' 张图');
     check('全面诊断：报告已持久化（顶栏出现「诊断报告（已保存）」入口）',
       await cdp.eval('!!document.querySelector(\'[data-testid="ai-open-diagnosis"]\')'));
 

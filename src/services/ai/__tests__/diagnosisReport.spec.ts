@@ -132,6 +132,22 @@ describe('buildFullDiagnosisRecord / buildDiagnosisMarkdown', () => {
     expect(buildDiagnosisMarkdown(rawRecord)).toContain('摘要 + 明细');
   });
 
+  it('P9 补：导出 Markdown 剥离 [[chart:…]] 引用标记（报告里没有渲染图表的位置）', () => {
+    // 真实服务返回的报告里就带着这种标记（deepseek-flash 实测写了 4 处）——
+    // 导出的 .md 会被用户直接交付，露出标记等于交付半成品。
+    const withRefs = {
+      ...record,
+      content:
+        '## 二、过程能力盘点\n\n[[chart:histogram:外壳长度]]\n\n均值 50.050643。\n\n' +
+        '[[chart:control:外壳长度]]\n\n## 三、主要问题\n',
+    };
+    const md = buildDiagnosisMarkdown(withRefs);
+    expect(md).not.toContain('[[chart:');
+    expect(md).toContain('## 二、过程能力盘点');
+    expect(md).toContain('均值 50.050643。');
+    expect(md).toContain('## 三、主要问题');
+    expect(md).toContain('未使用逐条原始测量值');
+  });
   it('文件名安全化且为 .md（项目名含非法字符时不产生坏文件名）', () => {
     const name = diagnosisFileName({ ...record, projectName: 'A/B:C*D?E"F<G>H|I' });
     expect(name.endsWith('.md')).toBe(true);

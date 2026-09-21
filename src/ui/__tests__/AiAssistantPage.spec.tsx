@@ -372,6 +372,31 @@ describe('AiAssistantPage —— AI 全面诊断（#12）', () => {
     expect(screen.getByTestId('diagnosis-content').textContent).toContain('上次会话保存的诊断');
   });
 
+  it('P9 补：报告正文里的 [[chart:…]] 引用不露标记，而是渲染成真图（与聊天气泡同口径）', () => {
+    useSettingsStore.getState().setMode('ai', '可用');
+    useProjectStore.getState().setDataset(makeDataset());
+    useDiagnosisStore.getState().setFullDiagnosis({
+      id: 'diag-z',
+      content: '## 二、过程能力盘点\n\n[[chart:histogram:外壳长度]]\n\n均值 50.050643。',
+      generatedAt: '2026-09-21T00:00:00.000Z',
+      model: 'deepseek-flash',
+      scope: 'summary',
+      sentFields: ['projectName'],
+      projectName: '质量日报',
+      characteristicCount: 1,
+    });
+
+    renderPage();
+
+    const content = screen.getByTestId('diagnosis-content');
+    expect(content.textContent).toContain('均值 50.050643。');
+    expect(content.textContent).not.toContain('[[chart:');
+    // 引用被渲染成真图（数据现算，不是空 div）
+    const refs = screen.getByTestId('ai-chart-refs');
+    expect(refs.querySelector('[data-testid="histogram-chart"]')).not.toBeNull();
+    // 整页都不该残留标记原文（复制 / 导出的入口同样不得露出）
+    expect(document.body.textContent).not.toContain('[[chart:');
+  });
   it('点击「清除」→ 报告卡消失且 store 归零', () => {
     useSettingsStore.getState().setMode('ai', '可用');
     useProjectStore.getState().setDataset(makeDataset());

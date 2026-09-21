@@ -745,6 +745,8 @@ function AiAssistantContent(): ReactElement {
                 生成时间：{fullDiagnosis.generatedAt || '—'} · 项目：{fullDiagnosis.projectName || '未命名项目'} ·
                 纳入特性数：{fullDiagnosis.characteristicCount}
               </Typography>
+              {/* 引用到的图表放在正文**之前**：正文是 420px 滚动区，图放下面会被长文压到看不见 */}
+              <ChatChartRefs ids={extractChartRefIds(fullDiagnosis.content)} />
               <Typography
                 variant="body2"
                 component="pre"
@@ -758,8 +760,10 @@ function AiAssistantContent(): ReactElement {
                 }}
                 data-testid="diagnosis-content"
               >
-                {fullDiagnosis.content}
+                {/* P9 补：报告正文里同样可能带 [[chart:…]] 引用 —— 不剥离就会把标记原样露出 */}
+                {stripChartRefs(fullDiagnosis.content)}
               </Typography>
+
             </CardContent>
           </Card>
         ) : null}

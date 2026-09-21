@@ -9,6 +9,7 @@
  */
 
 import type { PayloadScope } from './types';
+import { stripChartRefs } from './chartRefs';
 
 /**
  * 一次「AI 全面诊断」的完整记录。
@@ -97,7 +98,9 @@ export function buildDiagnosisMarkdown(record: FullDiagnosisRecord): string {
     '',
     '---',
     '',
-    record.content,
+    // P9 补：模型可能按数据契约写 [[chart:…]] 引用，而 Markdown 报告里没有渲染图表的位置 ——
+    // 直接落盘会让用户在导出的 .md 里看到标记原文。此处与聊天气泡同口径剥离（聊天里是渲染成真图）。
+    stripChartRefs(record.content),
     '',
     '---',
     '',
