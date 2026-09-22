@@ -9,22 +9,16 @@
  * 对接后链路不回归的护栏。
  */
 
-import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { expect, it } from 'vitest';
 import { parseXlsx } from '@/data/importer/xlsxImporter';
 import { buildModel } from '@/data/importer/buildModel';
 import { buildPareto } from '@/core/pareto/pareto';
 import { computeCapability } from '@/core/stats/capability';
 import { buildSubgroups } from '@/core/stats/subgrouping';
 
-const REAL_XLSX = 'E:/tools/品质工具/sample_data/quality_data.xlsx';
+import { describeReal, readRealXlsx } from './realData';
 
-function readRealXlsx(): ArrayBuffer {
-  const buf = readFileSync(REAL_XLSX);
-  return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer;
-}
-
-describe('端到端：真实 xlsx → 数据层 → core', () => {
+describeReal('端到端：真实 xlsx → 数据层 → core', () => {
   it('导入 → 建模：3 个物料各 50 条 + 6 类不良', () => {
     const parsed = parseXlsx(readRealXlsx());
     expect(parsed.errors).toEqual([]);

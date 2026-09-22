@@ -18,15 +18,15 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-const CHROME = 'C:/Users/22953/AppData/Local/Google/Chrome/Application/chrome.exe';
-const PY = 'C:/Users/22953/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe';
+import { CHROME } from './_env.mjs';
+import { PYTHON as PY } from './_env.mjs';
 /** offline 模式：打 dist 单文件产物（端口与 server 模式错开）。 */
 const OFFLINE = (process.argv[2] || '') === 'offline';
 const OUT_DIR = OFFLINE ? 'dist' : 'dist-server';
 const APP_PORT = OFFLINE ? 8805 : 8803;
 const CDP_PORT = OFFLINE ? 9485 : 9483;
 const APP_URL = 'http://127.0.0.1:' + APP_PORT + '/';
-const ROOT = 'E:/tools/Hogo-QA-tool';
+const ROOT = process.env.HOGO_ROOT || path.resolve(import.meta.dirname, '..');
 const PDF = ROOT + '/.probe/p6-print-' + (OFFLINE ? 'offline' : 'server') + '.pdf';
 const RENDER = ROOT + '/.probe/p6-render' + (OFFLINE ? '-offline' : '');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));

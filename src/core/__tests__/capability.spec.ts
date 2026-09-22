@@ -1,7 +1,7 @@
 /**
  * 能力指数回归测试（架构文档 §7 T01 验收要点 3、§0.2 #11）。
  *
- * ★ 回归基准断言：用**真实基准数据**（`E:\tools\品质工具\sample_data\quality_data.xlsx`
+ * ★ 回归基准断言：用**真实基准数据**（旧版 Python 工具的 quality_data.xlsx（现随仓库提供：`src/data/__tests__/fixtures/quality_data.xlsx`）
  * 的 dimension 工作表，3 个物料各 50 条测量值）计算，**在未剔除异常值的前提下**，
  * `Ppk` 必须与 `docs/01-基准数据与验证口径.md` 的 Cpk 吻合（误差 <= 0.001）。
  * Cp/Cpk 因 σ_within 与 σ_overall 口径不同允许不等（这正是修正旧工具缺陷的体现）。

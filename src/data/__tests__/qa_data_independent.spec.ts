@@ -12,7 +12,6 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
 import * as XLSX from 'xlsx';
 import { HogoError } from '../errors';
 import { parseXlsx } from '../importer/xlsxImporter';
@@ -27,12 +26,7 @@ import {
 import { canMigrate, migrateProject, readSchemaVersion, validateProject } from '../migrations';
 import { CURRENT_SCHEMA_VERSION, type Project } from '../schema';
 
-const REAL_XLSX = 'E:/tools/品质工具/sample_data/quality_data.xlsx';
-
-function readRealXlsx(): ArrayBuffer {
-  const buf = readFileSync(REAL_XLSX);
-  return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer;
-}
+import { describeReal, readRealXlsx } from './realData';
 
 /** 手工构造 xlsx（ArrayBuffer）。 */
 function makeXlsx(sheets: Record<string, unknown[][]>): ArrayBuffer {
@@ -52,7 +46,7 @@ function stableStringify(v: unknown): string {
   return `{${keys.map((k) => `${JSON.stringify(k)}:${stableStringify(o[k])}`).join(',')}}`;
 }
 
-describe('QA-D1 真实 xlsx 结构独立核验（不信任 parseXlsx 自报）', () => {
+describeReal('QA-D1 真实 xlsx 结构独立核验（不信任 parseXlsx 自报）', () => {
   it('用原始字节读 sheet 名与行数，核对 parseXlsx 的结果', () => {
     const buf = readRealXlsx();
     // 独立读取（不经 parseXlsx）

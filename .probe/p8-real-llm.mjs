@@ -27,8 +27,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-const CHROME = 'C:/Users/22953/AppData/Local/Google/Chrome/Application/chrome.exe';
-const ROOT = 'E:/tools/Hogo-QA-tool';
+import { CHROME } from './_env.mjs';
+const ROOT = process.env.HOGO_ROOT || path.resolve(import.meta.dirname, '..');
 const OUT = ROOT + '/.probe';
 const APP_PORT = 8817;
 const CDP_PORT = 9497;

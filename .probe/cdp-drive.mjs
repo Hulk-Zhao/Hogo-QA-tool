@@ -8,7 +8,7 @@
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 
-const CHROME = 'C:/Users/22953/AppData/Local/Google/Chrome/Application/chrome.exe';
+import { CHROME } from './_env.mjs';
 const APP_URL = 'file:///E:/tools/Hogo-QA-tool/dist/index.html';
 const CDP_PORT = 9223;
 const PROFILE = 'E:/tools/Hogo-QA-tool/.probe/chrome-profile';

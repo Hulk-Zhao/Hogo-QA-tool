@@ -1,9 +1,9 @@
 {
-  "name": "hogo_qa_tool",
+  "name": "hogo-qa-tool",
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "Hogo-QA-tool: 离线质量过程能力分析工具（SPC / Cpk / 柏拉图 / 判异准则）",
+  "description": "离线质量过程能力分析工具：SPC 控制图 / Cp·Cpk·Pp·Ppk / 柏拉图 / 判异准则（西方电气规则），支持一键日报导出与可选 AI 解读",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build --config vite.config.offline.ts",
@@ -13,7 +13,10 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc -p tsconfig.app.json --noEmit",
-    "lint": "eslint . --ext .ts,.tsx"
+    "lint": "eslint . --ext .ts,.tsx",
+    "verify": "npm run typecheck && npm run lint && npm test",
+    "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"*.{ts,js,cjs,json,md}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\""
   },
   "dependencies": {
     "@emotion/react": "^11.13.0",
@@ -50,5 +53,30 @@
     "vite": "^5.4.11",
     "vite-plugin-singlefile": "^2.3.3",
     "vitest": "^2.1.8"
+  },
+  "license": "MIT",
+  "keywords": [
+    "spc",
+    "cpk",
+    "ppk",
+    "quality",
+    "quality-management",
+    "control-chart",
+    "pareto",
+    "manufacturing",
+    "offline-first",
+    "react",
+    "typescript"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "homepage": "https://github.com/<your-name>/hogo-qa-tool#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/<your-name>/hogo-qa-tool.git"
+  },
+  "bugs": {
+    "url": "https://github.com/<your-name>/hogo-qa-tool/issues"
   }
 }

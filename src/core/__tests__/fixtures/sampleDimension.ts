@@ -1,7 +1,7 @@
 /**
  * 基准数据 fixture（dimension sheet）——**真实数据**。
  *
- * 数据来源：`E:\tools\品质工具\sample_data\quality_data.xlsx` 的 `dimension` 工作表，
+ * 数据来源：旧版 Python 工具的 quality_data.xlsx（现随仓库提供：`src/data/__tests__/fixtures/quality_data.xlsx`） 的 `dimension` 工作表，
  * 3 个物料各 50 条测量值（共 150 条），保持原始行顺序；均值与样本标准差（ddof=1）
  * 均为对真实数据的实测值。
  *

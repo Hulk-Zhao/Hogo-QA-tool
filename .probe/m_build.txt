@@ -1,5 +1,0 @@
-
-> hogo_qa_tool@1.0.0 build
-> tsc -b && vite build --config vite.config.offline.ts
-
-src/__probe_type_error.ts(1,14): error TS2322: Type 'string' is not assignable to type 'number'.

@@ -1,1 +1,0 @@
-{"id":"chatcmpl-910","object":"chat.completion","created":1789734986,"model":"qwen3.5:9b","system_fingerprint":"fp_ollama","choices":[{"index":0,"message":{"role":"assistant","content":"CPK（制程能力指数）是衡量一个制造过程在稳定状态下，其实际产出符合规格限的能力与潜在能力的综合评价指标。"},"finish_reason":"stop"}],"usage":{"prompt_tokens":16,"completion_tokens":30,"total_tokens":46}}

@@ -3,10 +3,10 @@ import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-const CHROME = 'C:/Users/22953/AppData/Local/Google/Chrome/Application/chrome.exe';
+import { CHROME } from './_env.mjs';
 const APP_URL = 'http://127.0.0.1:8790/';
 const CDP_PORT = 9465;
-const ROOT = 'E:/tools/Hogo-QA-tool';
+const ROOT = process.env.HOGO_ROOT || path.resolve(import.meta.dirname, '..');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 function buildCsv() { const rows = ['物料名称,测量值,USL,LSL']; for (let i = 0; i < 60; i += 1) rows.push('外壳长度,' + (50 + Math.sin(i * 0.7) * 0.03).toFixed(4) + ',50.2,49.8'); for (let i = 0; i < 60; i += 1) rows.push('转轴直径,' + (12 + Math.sin(i * 0.5) * 0.006).toFixed(4) + ',12.02,11.98'); return rows.join('\n'); }
 class CDP { constructor(ws) { this.ws = ws; this.id = 0; this.pending = new Map(); this.handlers = new Map(); ws.addEventListener('message', (ev) => { const m = JSON.parse(typeof ev.data === 'string' ? ev.data : String(ev.data)); if (m.id && this.pending.has(m.id)) { const { resolve, reject } = this.pending.get(m.id); this.pending.delete(m.id); if (m.error) reject(new Error(JSON.stringify(m.error))); else resolve(m.result); } else if (m.method && this.handlers.has(m.method)) for (const h of this.handlers.get(m.method)) h(m.params); }); } on(m, h) { if (!this.handlers.has(m)) this.handlers.set(m, []); this.handlers.get(m).push(h); } send(method, params = {}) { const id = ++this.id; return new Promise((res, rej) => { this.pending.set(id, { resolve: res, reject: rej }); this.ws.send(JSON.stringify({ id, method, params })); }); } async eval(e) { const r = await this.send('Runtime.evaluate', { expression: e, awaitPromise: true, returnByValue: true }); if (r.exceptionDetails) throw new Error(JSON.stringify(r.exceptionDetails).slice(0, 300)); return r.result.value; } }

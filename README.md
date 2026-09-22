@@ -2,7 +2,7 @@
 
 离线质量过程能力分析工具 —— **SPC / CPK / 柏拉图 / 判异准则**。
 
-面向工厂质量人员，替代原有的 Python 桌面工具（`E:\tools\品质工具`），
+面向工厂质量人员，由作者原先自建的 Python 桌面工具重写而来，
 提供 Web UI、双模式（离线 / AI）、可审计的项目化管理。
 
 ## 核心差异化
@@ -378,9 +378,44 @@ AI 功能默认**只发送统计摘要，绝不包含逐条原始测量值**。
 sendRawData 需用户显式勾选并二次确认，且每次请求的 scope 记入 `AiUsageLog`。
 payload 构造采用**白名单拷贝**，新增字段默认不外发。
 
+## 开源与协作
+
+- **许可证**：[MIT](./LICENSE)。
+- **贡献方式**：见 [CONTRIBUTING.md](./CONTRIBUTING.md)。提交前请跑 `npm run verify`
+  （= typecheck + lint + 单测）与 `npm run build`。
+- **CI**：`.github/workflows/ci.yml` 在 Node 20 上跑类型 / 静态检查 / 单测 / 两种构建。
+
+### 仓库结构
+
+```
+src/core/        纯计算内核：能力指数、控制图、判异准则、柏拉图（无 React / 无 DOM）
+src/data/        导入导出与持久化（xlsx / csv / 项目包 / IndexedDB + localStorage 降级）
+src/services/    业务编排：AI 客户端与提示词、报表与 Word/Excel 导出
+src/store/       zustand 状态（项目、分析、设置、诊断报告）
+src/ui/          页面与图表组件（MUI + ECharts + Tailwind）
+docs/            PRD、系统设计与基准数据口径
+.probe/          真机验收脚本（**脚本入库、产物不入库**，见 .probe/README.md）
+scripts/         本地静态服务
+```
+
+### 测试用的真实基准数据
+
+需要真实 xlsx 的用例默认读仓库内 fixture
+（`src/data/__tests__/fixtures/quality_data.xlsx`：150 行 dimension + 6 行 defect，纯合成数据）。
+想换成你自己的文件：`HOGO_REAL_XLSX=/path/to/quality_data.xlsx npm test`；
+两者都没有时这几组用例**整体 skip**（不会红），以保证任何新克隆与 CI 都是绿的。
+
+### AI 功能与密钥
+
+AI 是**可选**能力：不配 Base URL 时工具为纯离线模式，全部统计与报表功能不受影响。
+配了才需要 key，且 key 只存在**本机浏览器**（localStorage），不随项目包导出。
+排查 AI 连接问题见上文「AI 助手返回空 / 连不上本机模型怎么办」。
+
 ## 文档
 
 - `docs/00-范围决策与调研结论.md` —— 范围决策、旧工具缺陷、行业调研
 - `docs/01-基准数据与验证口径.md` —— 回归基准值与验收口径
 - `docs/PRD_v1.0.md` —— 产品需求文档
 - `docs/system_design.md` —— 系统架构设计（含统计公式与判异算法定义）
+- `CONTRIBUTING.md` —— 贡献指南（开发环境、门禁、代码约定）
+- `.probe/README.md` —— 真机验收脚本怎么跑（含真 LLM 探针）

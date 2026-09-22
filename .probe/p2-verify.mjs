@@ -15,10 +15,10 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-const CHROME = 'C:/Users/22953/AppData/Local/Google/Chrome/Application/chrome.exe';
+import { CHROME } from './_env.mjs';
 const APP_URL = 'http://127.0.0.1:8787/';
 const CDP_PORT = 9455;
-const ROOT = 'E:/tools/Hogo-QA-tool';
+const ROOT = process.env.HOGO_ROOT || path.resolve(import.meta.dirname, '..');
 const OUT = ROOT + '/.probe/p2-verify-result.json';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 

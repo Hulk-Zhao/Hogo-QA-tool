@@ -302,7 +302,7 @@ export function embedChartImages(
   //    而 openpyxl 是按 workbook/sheet 关系去找 drawing 的、根本不读 content type，
   //    所以组件测试与 openpyxl 全绿，却和用户的真实观感相反。
   //    实证：修复前 `.probe/downloads/report.xlsx` 的 [Content_Types].xml 里
-  //    搜不到 drawing（见 .probe/p4-xlsx-ct-before.json）。
+  //    搜不到 drawing（基线由 `.probe/` 下的探针现场生成，产物不入库）。
   const contentTypes = textOf(entries, '[Content_Types].xml');
   let patchedTypes = contentTypes;
   if (!/Extension="png"/.test(patchedTypes)) {

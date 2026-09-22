@@ -2,24 +2,17 @@
  * xlsxImporter 测试：旧工具真实文件导入 + 列名变体容错。
  *
  * 硬要求（team-lead T02）：直接导入
- * `E:\tools\品质工具\sample_data\quality_data.xlsx`，不改列名；
+ * 旧版 Python 工具的 quality_data.xlsx（现随仓库提供：`src/data/__tests__/fixtures/quality_data.xlsx`），不改列名；
  * dimension 150 行（3 物料各 50），defect 6 类与真实值一致。
  */
 
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
 import * as XLSX from 'xlsx';
 import { HogoError } from '../errors';
 import { parseXlsx } from '../importer/xlsxImporter';
 import { buildModel } from '../importer/buildModel';
 
-const REAL_XLSX = 'E:/tools/品质工具/sample_data/quality_data.xlsx';
-
-/** 读取真实 xlsx 为 ArrayBuffer。 */
-function readRealXlsx(): ArrayBuffer {
-  const buf = readFileSync(REAL_XLSX);
-  return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer;
-}
+import { describeReal, readRealXlsx } from './realData';
 
 /** 用 SheetJS 手工构造一个含指定列的 xlsx（列名变体测试用）。 */
 function makeXlsx(sheets: Record<string, unknown[][]>): ArrayBuffer {
@@ -31,7 +24,7 @@ function makeXlsx(sheets: Record<string, unknown[][]>): ArrayBuffer {
   return XLSX.write(wb, { bookType: 'xlsx', type: 'array' }) as ArrayBuffer;
 }
 
-describe('parseXlsx：旧工具真实文件', () => {
+describeReal('parseXlsx：真实基准文件', () => {
   it('识别 dimension / defect，解析出正确条数', () => {
     const result = parseXlsx(readRealXlsx());
     expect(result.dimensionSheet).not.toBeNull();

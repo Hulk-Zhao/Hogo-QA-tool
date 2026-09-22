@@ -1,0 +1,16 @@
+# 统一换行符：仓库内一律 LF（Windows 检出时按需转换）
+* text=auto eol=lf
+
+# 二进制：不做换行转换、不参与 diff
+*.xlsx binary
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.pdf  binary
+*.woff binary
+*.woff2 binary
+
+# 语言统计（GitHub Linguist）
+*.mermaid linguist-language=Mermaid

@@ -10,7 +10,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-const CHROME = 'C:/Users/22953/AppData/Local/Google/Chrome/Application/chrome.exe';
+import { CHROME } from './_env.mjs';
 const APP_URL = 'http://127.0.0.1:8787/';
 const CDP_PORT = 9445;
 const OUT = 'E:/tools/Hogo-QA-tool/.probe/repro-400-result.json';

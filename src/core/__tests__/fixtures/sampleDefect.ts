@@ -1,7 +1,7 @@
 /**
  * 基准数据 fixture（defect sheet）——**真实数据**。
  *
- * 数据来源：`E:\tools\品质工具\sample_data\quality_data.xlsx` 的 `defect` 工作表，
+ * 数据来源：旧版 Python 工具的 quality_data.xlsx（现随仓库提供：`src/data/__tests__/fixtures/quality_data.xlsx`） 的 `defect` 工作表，
  * 6 类不良，合计 838 件（逐项与真实数据一致）：
  * 划伤 320 / 尺寸超差 215 / 毛边 148 / 色差 92 / 变形 45 / 异物 18。
  *

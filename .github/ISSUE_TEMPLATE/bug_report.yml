@@ -1,0 +1,47 @@
+name: Bug 报告
+description: 报告一个可复现的问题
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈！请尽量提供可复现的信息 —— 质量问题工具的 bug 往往与具体数据有关，
+        带上数据特征（特性数、子组容量、规格限）会大幅加速定位。
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: 现象
+      description: 你做了什么、期望是什么、实际发生了什么
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      placeholder: |
+        1. 导入 xx.xlsx
+        2. 进入「能力分析」页
+        3. 点击「一键日报导出」
+        4. ……
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: 版本 / 提交号
+      description: 页面右下角构建时间戳，或 git 短 SHA
+  - type: dropdown
+    id: mode
+    attributes:
+      label: 运行形态
+      options:
+        - 双击 dist/index.html（纯离线单文件）
+        - npm run dev（开发服务器）
+        - npm run serve（本地静态服务）
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: 浏览器与系统
+      placeholder: Chrome 138 / Windows 11

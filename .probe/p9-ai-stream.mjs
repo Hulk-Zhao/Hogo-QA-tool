@@ -16,8 +16,8 @@ import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 
-const CHROME = 'C:/Users/22953/AppData/Local/Google/Chrome/Application/chrome.exe';
-const ROOT = 'E:/tools/Hogo-QA-tool';
+import { CHROME } from './_env.mjs';
+const ROOT = process.env.HOGO_ROOT || path.resolve(import.meta.dirname, '..');
 const OUT = ROOT + '/.probe';
 const OFFLINE = (process.argv[2] || '') === 'offline';
 const OUT_DIR = OFFLINE ? 'dist' : 'dist-server';

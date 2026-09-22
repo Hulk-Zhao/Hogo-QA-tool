@@ -16,7 +16,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-const CHROME = 'C:/Users/22953/AppData/Local/Google/Chrome/Application/chrome.exe';
+import { CHROME } from './_env.mjs';
 const APP_URL = 'file:///E:/tools/Hogo-QA-tool/dist/index.html';
 const CDP_PORT = 9334;
 

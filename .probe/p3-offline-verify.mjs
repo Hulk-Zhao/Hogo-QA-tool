@@ -4,11 +4,11 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-const CHROME = 'C:/Users/22953/AppData/Local/Google/Chrome/Application/chrome.exe';
-const PY = 'C:/Users/22953/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe';
+import { CHROME } from './_env.mjs';
+import { PYTHON as PY } from './_env.mjs';
 const APP_URL = 'file:///E:/tools/Hogo-QA-tool/dist/index.html';
 const CDP_PORT = 9469;
-const ROOT = 'E:/tools/Hogo-QA-tool';
+const ROOT = process.env.HOGO_ROOT || path.resolve(import.meta.dirname, '..');
 const PDF = ROOT + '/.probe/p3-offline-print.pdf';
 const XLSX = ROOT + '/.probe/downloads/offline-report.xlsx';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));

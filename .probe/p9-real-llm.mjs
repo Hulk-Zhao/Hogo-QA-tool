@@ -7,7 +7,7 @@
  *
  * 用法（PowerShell，二选一）：
  *   $env:DEEPSEEK_API_KEY = 'sk-你的key'; node .probe/p9-real-llm.mjs
- *   或者把 key 单独写进 E:\tools\Hogo-QA-tool\.secrets\deepseek.key（该目录已在 .gitignore 中）
+ *   或者把 key 单独写进仓库根目录的 .secrets/deepseek.key（该目录已在 .gitignore 中）
  *   再不济会自动回退读 Windows 用户变量（注册表 HKCU\Environment）——为了区分
  *   「对话框里没点确定 = 没保存」与「保存了但当前终端没继承」这两种情况。
  *
@@ -32,8 +32,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-const CHROME = 'C:/Users/22953/AppData/Local/Google/Chrome/Application/chrome.exe';
-const ROOT = 'E:/tools/Hogo-QA-tool';
+import { CHROME } from './_env.mjs';
+const ROOT = process.env.HOGO_ROOT || path.resolve(import.meta.dirname, '..');
 const OUT = ROOT + '/.probe';
 const APP_PORT = 8823;
 const CDP_PORT = 9503;
@@ -213,7 +213,7 @@ async function main() {
 
   if (KEY.length === 0) {
     console.log('SKIP  没有配 key。探针按「进程环境变量 → .secrets/deepseek.key → Windows 用户变量」三处找，不碰仓库其它文件。');
-    console.log('      1) 写文件（最快，且不需要重启任何东西）：E:\\tools\\Hogo-QA-tool\\.secrets\\deepseek.key');
+    console.log('      1) 写文件（最快，且不需要重启任何东西）：<仓库根目录>\\.secrets\\deepseek.key');
     console.log('      2) 临时给本会话：  $env:DEEPSEEK_API_KEY = \'sk-你的key\'; node .probe/p9-real-llm.mjs');
     console.log('      3) Windows「环境变量」对话框新建用户变量 DEEPSEEK_API_KEY —— **必须点「确定」**才落盘。');
     if (!userEnvExists('DEEPSEEK_API_KEY') && !userEnvExists('HOGO_LLM_KEY')) {
