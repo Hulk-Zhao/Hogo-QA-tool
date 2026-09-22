@@ -71,12 +71,12 @@
   "engines": {
     "node": ">=18"
   },
-  "homepage": "https://github.com/<your-name>/hogo-qa-tool#readme",
+  "homepage": "https://github.com/Hulk-Zhao/Hogo-QA-tool#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/<your-name>/hogo-qa-tool.git"
+    "url": "git+https://github.com/Hulk-Zhao/Hogo-QA-tool.git"
   },
   "bugs": {
-    "url": "https://github.com/<your-name>/hogo-qa-tool/issues"
+    "url": "https://github.com/Hulk-Zhao/Hogo-QA-tool/issues"
   }
 }
