@@ -1,5 +1,7 @@
 # Hogo-QA-tool
 
+[![CI](https://github.com/Hulk-Zhao/Hogo-QA-tool/actions/workflows/ci.yml/badge.svg)](https://github.com/Hulk-Zhao/Hogo-QA-tool/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 离线质量过程能力分析工具 —— **SPC / CPK / 柏拉图 / 判异准则**。
 
 面向工厂质量人员，由作者原先自建的 Python 桌面工具重写而来，
