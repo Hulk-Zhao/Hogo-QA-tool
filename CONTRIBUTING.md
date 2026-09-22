@@ -45,7 +45,7 @@ npm run build       # 离线单文件产物（dist/index.html）
   （`src/data/__tests__/fixtures/quality_data.xlsx`，150 行 dimension + 6 行 defect）。
   想换成自己的文件：`HOGO_REAL_XLSX=/path/to/quality_data.xlsx npm test`；
   两者都没有时这几组用例会**整体 skip**（不会红），以保护新克隆与 CI。
-- 真机验收脚本在 `.probe/`，见 `.probe/README.md`（多数脚本写死了作者本机的 Chrome 路径与端口）。
+- 真机验收脚本在 `.probe/`，见 `.probe/README.md`。Chrome / Python 路径由 `.probe/_env.mjs` 自动探测（可用 `CHROME_PATH` / `PYTHON_PATH` 覆盖），端口在各脚本里可变，请不要写死本机路径。
 
 ## 提交信息
 

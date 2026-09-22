@@ -11,7 +11,7 @@ rem --- locate node ---
 where node >nul 2>nul
 if errorlevel 1 (
   echo   [ERROR] Node.js not found in PATH.
-  echo   Install Node.js 18+ from https://nodejs.org/ and retry.
+  echo   Install Node.js 22.22.2 or newer from https://nodejs.org/ and retry.
   echo.
   pause
   exit /b 1
