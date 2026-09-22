@@ -383,7 +383,7 @@ payload 构造采用**白名单拷贝**，新增字段默认不外发。
 - **许可证**：[MIT](./LICENSE)。
 - **贡献方式**：见 [CONTRIBUTING.md](./CONTRIBUTING.md)。提交前请跑 `npm run verify`
   （= typecheck + lint + 单测）与 `npm run build`。
-- **CI**：`.github/workflows/ci.yml` 在 Node 20 上跑类型 / 静态检查 / 单测 / 两种构建。
+- **CI**：`.github/workflows/ci.yml` 在 Node 24 上跑类型 / 静态检查 / 单测 / 两种构建。
 
 ### 仓库结构
 

@@ -6,7 +6,7 @@
 ## 开发环境
 
 ```bash
-node -v            # 需要 >= 18（本仓库在 20 LTS 上开发）
+node -v            # 需要 >= 22.22.2（本仓库在 Node 24 LTS 上开发）
 npm ci             # 按 lock 文件安装
 npm run dev        # 开发服务器
 ```
