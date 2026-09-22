@@ -1,6 +1,12 @@
 # 统一换行符：仓库内一律 LF（Windows 检出时按需转换）
 * text=auto eol=lf
 
+# Windows 批处理例外：仓库内仍存 LF，检出时转成 CRLF。
+# cmd.exe 对 LF-only 的 .bat 有已知问题（if/for 块、标签跳转），
+# 而 .editorconfig 的 [*.{bat,cmd}] 也声明了 crlf —— 之前两者互相矛盾。
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
 # 二进制：不做换行转换、不参与 diff
 *.xlsx binary
 *.png  binary
