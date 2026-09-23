@@ -17,19 +17,17 @@ if errorlevel 1 (
   exit /b 1
 )
 
-rem --- build server version if missing ---
-if not exist "dist-server\index.html" (
-  echo   First run: building, please wait...
+rem --- build server version if missing or STALE ---
+rem Building only when dist-server\index.html is absent is NOT enough:
+rem if the old bundle is still there, every later source change is silently
+rem ignored and the user keeps running stale code ("the fix does not work").
+rem Staleness check + rebuild lives in scripts\ensure-build.mjs.
+node scripts\ensure-build.mjs
+if errorlevel 1 (
+  echo   [ERROR] Build failed. Run "npx vite build" to see details.
   echo.
-  call npx vite build >nul 2>nul
-  if not exist "dist-server\index.html" (
-    echo   [ERROR] Build failed. Run "npx vite build" to see details.
-    echo.
-    pause
-    exit /b 1
-  )
-  echo   Build done.
-  echo.
+  pause
+  exit /b 1
 )
 
 echo   Starting local server, browser will open shortly...

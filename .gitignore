@@ -57,6 +57,7 @@ _*.txt
 .probe/out/
 .probe/p3-png/
 .probe/*-render/
+.probe/*-profile/
 .probe/*-render-*/
 .probe/p4-ab-*/
 .probe/p4-one-*/
