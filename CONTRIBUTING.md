@@ -41,6 +41,9 @@ npm run build       # 离线单文件产物（dist/index.html）
 - 新增行为**必须**有用例；只加实现不加测试的 PR 会被要求补。
 - 修复统计学缺陷时，推荐同时补一条「变异测试」记录（把修复点改坏 → 用例必须变红），
   说明这条用例不是摆设。仓库里的历史提交大量采用这个做法。
+- **样本数据与 README 数字**：`samples/hogo-qa-sample.xlsx` 是 README「样本数据与复算」
+  一节引用的数据，`npm run sample:verify` 用真实内核复算它并断言（CI 会跑）。
+  改了统计公式或样本数据，README 里那三张表要一起更新。
 - **真实基准数据**：需要真实 xlsx 的用例默认读仓库内 fixture
   （`src/data/__tests__/fixtures/quality_data.xlsx`，150 行 dimension + 6 行 defect）。
   想换成自己的文件：`HOGO_REAL_XLSX=/path/to/quality_data.xlsx npm test`；

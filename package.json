@@ -15,6 +15,7 @@
     "typecheck": "tsc -p tsconfig.app.json --noEmit",
     "lint": "eslint . --ext .ts,.tsx",
     "verify": "npm run typecheck && npm run lint && npm test",
+    "sample:verify": "vite-node samples/verify.ts",
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"*.{ts,js,cjs,json,md}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\""
   },

@@ -19,5 +19,6 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint
       - run: npm test
+      - run: npm run sample:verify
       - run: npm run build
       - run: npm run build:server
