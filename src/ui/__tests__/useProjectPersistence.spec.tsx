@@ -15,6 +15,7 @@ import { act, renderHook } from '@testing-library/react';
 import { CURRENT_SCHEMA_VERSION, type Dataset } from '@/data/schema';
 import { LAST_PROJECT_STORAGE_KEY } from '@/ui/bootstrap/projectSession';
 import { useProjectPersistence } from '@/ui/hooks/useProjectPersistence';
+import { getSharedRepositoryHandle, resetSharedRepositoryHandle } from '@/data/repositories/handle';
 import { useProjectStore } from '@/store/projectStore';
 
 /** 造一个最小可用数据集（1 特性 × 3 测量值）。 */
@@ -55,6 +56,7 @@ function makeDataset(): Dataset {
 
 function resetAll(): void {
   localStorage.clear();
+  resetSharedRepositoryHandle();
   useProjectStore.setState({
     project: null,
     projectName: '外壳长度分析',
@@ -78,7 +80,13 @@ describe('useProjectPersistence —— 保存成功后记录「上次项目」�
 
     const raw = localStorage.getItem(LAST_PROJECT_STORAGE_KEY);
     expect(raw, '保存成功后必须记录「上次项目」，否则刷新无法自动恢复').not.toBeNull();
-    expect((JSON.parse(raw as string) as { projectId: string }).projectId).toBe('local');
+
+    // 记录里的 id 必须**等于真正落盘的那个项目**（而不是某个硬编码常量）：
+    // 否则刷新后按记录去查项目必然查不到，自动恢复就变成死代码。
+    const handle = await getSharedRepositoryHandle();
+    const list = await handle.repository.listProjects();
+    expect(list).toHaveLength(1);
+    expect((JSON.parse(raw as string) as { projectId: string }).projectId).toBe(list[0].id);
 
     // 反向对照：只记 id 而项目没落盘的话，恢复必然拿不到数据。
     expect(result.current.lastSavedAt).not.toBeNull();

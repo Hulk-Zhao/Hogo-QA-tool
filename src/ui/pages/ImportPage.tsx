@@ -42,6 +42,7 @@ import { useNavigate } from 'react-router-dom';
 import type { ReactElement } from 'react';
 import { useProjectStore, type ImportValidation } from '@/store/projectStore';
 import { useUiStore } from '@/store/uiStore';
+import { useProjectPersistence } from '@/ui/hooks/useProjectPersistence';
 import DataTable, { type DataTableColumn } from '@/ui/components/DataTable';
 import StatCard from '@/ui/components/StatCard';
 import { HogoError } from '@/data/errors';
@@ -129,6 +130,7 @@ export default function ImportPage(): ReactElement {
   const dataset = useProjectStore((s) => s.dataset);
   const pushToast = useUiStore((s) => s.pushToast);
   const navigate = useNavigate();
+  const { persist } = useProjectPersistence();
 
   /** 由解析状态构造校验统计（调用真实 buildModel，捕获错误）。 */
   const validation: ImportValidation | null = useMemo(() => {
@@ -137,7 +139,8 @@ export default function ImportPage(): ReactElement {
     }
     try {
       const built = buildModel({
-        projectId: 'local',
+        // 试算用占位 id：这里只为取计数，结果不落盘，真实项目 id 由 setDataset 分配。
+        projectId: 'preview',
         datasetName: parsed.fileName || '粘贴数据',
         sourceType: parsed.isXlsx ? 'xlsx' : 'csv',
         rawFileName: parsed.fileName || '粘贴数据',
@@ -241,14 +244,24 @@ export default function ImportPage(): ReactElement {
     }
   };
 
-  /** 确认导入。 */
-  const handleConfirm = (): void => {
+  /**
+   * 确认导入。
+   *
+   * **导入即落盘**：此前本方法只更新内存切片（`setDataset`），从不写仓库，
+   * 于是「项目库」永远是空的 —— 空态文案承诺「导入数据并保存后，项目会出现在
+   * 此列表中」，但导入路径上根本不存在「保存」这个动作（见记忆第二十一节）。
+   *
+   * 落盘失败**不阻断**导入：数据已在内存里可用，`persist` 会给出失败提示，
+   * 其余分析流程照常。
+   */
+  const handleConfirm = async (): Promise<void> => {
     if (!parsed) {
       return;
     }
     try {
       const built = buildModel({
-        projectId: 'local',
+        // 真实项目 id 由 `setDataset` 统一分配（见其实现注释）。
+        projectId: 'preview',
         datasetName: parsed.fileName || '粘贴数据',
         sourceType: parsed.isXlsx ? 'xlsx' : 'csv',
         rawFileName: parsed.fileName || '粘贴数据',
@@ -263,7 +276,12 @@ export default function ImportPage(): ReactElement {
         return;
       }
       setDataset(ds);
-      pushToast(`导入成功：${ds.characteristics.length} 个特性`, 'success');
+      // 「导入成功 + 已保存」合并成一条提示（含真实数量），不重复弹两条。
+      await persist({
+        successMessage:
+          `导入成功：${ds.characteristics.length} 个特性、` +
+          `${built.totalMeasurements} 个测量值，已保存到项目库`,
+      });
       navigate('/capability');
     } catch (err) {
       pushToast(`导入失败：${describeImportError(err)}`, 'error');
@@ -511,7 +529,11 @@ export default function ImportPage(): ReactElement {
 
           <Divider />
           <Stack direction="row" spacing={1.5}>
-            <Button variant="contained" onClick={handleConfirm} disabled={!validation || validation.measurementCount === 0}>
+            <Button
+              variant="contained"
+              onClick={() => void handleConfirm()}
+              disabled={!validation || validation.measurementCount === 0}
+            >
               确认导入并分析
             </Button>
             <Button
@@ -528,7 +550,10 @@ export default function ImportPage(): ReactElement {
         </>
       ) : (
         <Alert severity="info">
-          尚未导入数据。{dataset ? `当前已存在数据集「${dataset.name}」，重新导入将覆盖。` : '请拖拽文件或粘贴 CSV。'}
+          尚未导入数据。
+          {dataset
+            ? `当前已存在数据集「${dataset.name}」，重新导入会新建一个项目。`
+            : '请拖拽文件或粘贴 CSV。'}
         </Alert>
       )}
     </Stack>

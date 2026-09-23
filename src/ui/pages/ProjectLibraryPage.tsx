@@ -300,7 +300,7 @@ export default function ProjectLibraryPage(props: ProjectLibraryPageProps = {}):
           description={
             query.trim().length > 0
               ? '尝试更换关键词。'
-              : '导入数据并保存后，项目会出现在此列表中。'
+              : '导入数据后，项目会自动保存并出现在此列表中。'
           }
         />
       ) : (

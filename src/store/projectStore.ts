@@ -181,7 +181,12 @@ interface ProjectState {
   /** 设置整个项目实体（加载 / 导入项目包时使用）。 */
   setProject: (project: Project) => void;
   selectCharacteristic: (id: string | null) => void;
-  /** 设置导入结果（由 importer 建模产出）。 */
+  /**
+   * 设置导入结果（由 importer 建模产出）。
+   *
+   * **每次调用都会新建一个项目实体**（id 唯一）：导入语义是「新项目」，
+   * 不是「覆盖当前项目」（见 `setDataset` 实现注释）。
+   */
   setDataset: (dataset: Dataset) => void;
   clearDataset: () => void;
   /** 更新特性的异常值标注与确认。 */
@@ -279,15 +284,32 @@ export const useProjectStore = create<ProjectState>((set) => ({
 
   selectCharacteristic: (id) => set({ selectedCharacteristicId: id }),
 
+  /**
+   * 导入结果落库。
+   *
+   * **每次导入 = 一个新项目**：此前这里是「已有项目就复用 `s.project`」，
+   * 而项目 id 又被硬编码成 `'local'`，于是第二次导入会**静默覆盖**第一个项目 ——
+   * 「项目库」永远只可能有 1 条记录，用户看到的就是「不存在任何数据」。
+   * 项目库是**项目集合**，覆盖语义在这里必然导致数据丢失，故改为新建。
+   *
+   * 项目名取数据集名（导入时即文件名/「粘贴数据」），避免项目库里堆满
+   * 「未命名项目」而无法区分。`dataset.projectId` 同步改写为新项目 id，
+   * 保证内存切片与落盘实体一致。
+   */
   setDataset: (dataset) =>
-    set((s) => ({
-      dataset,
-      selectedCharacteristicId: dataset.characteristics[0]?.id ?? null,
-      // 同步更新当前项目实体的 datasets（若已有项目）。
-      project: s.project
-        ? { ...s.project, datasets: [dataset], updatedAt: new Date().toISOString() }
-        : buildProjectFromDataset('local', s.projectName, dataset),
-    })),
+    set((s) => {
+      const project = buildProjectFromDataset(
+        generateId('proj'),
+        dataset.name.trim().length > 0 ? dataset.name : s.projectName,
+        dataset,
+      );
+      return {
+        dataset: { ...dataset, projectId: project.id },
+        selectedCharacteristicId: dataset.characteristics[0]?.id ?? null,
+        project,
+        projectName: project.name,
+      };
+    }),
 
   clearDataset: () => set({ dataset: null, selectedCharacteristicId: null }),
 

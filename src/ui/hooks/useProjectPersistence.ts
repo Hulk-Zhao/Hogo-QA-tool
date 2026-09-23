@@ -15,10 +15,15 @@
  * 保存失败会在 UI 明确 toast（不静默失败）；降级（localStorage / 内存）时附加
  * 面向用户的持久化受限提示（含「改用 start.bat 本地服务」指引）。
  * `saving` / `lastSavedAt` 状态语义保持不变（T03 已验收）。
+ *
+ * 状态读取口径（本轮 P0 修复）：`persist()` 在**调用时**才从 store 取当前
+ * 项目 / 数据集（而非闭包捕获渲染快照），因此「先 `setDataset()`、再同一帧内
+ * `persist()`」（导入页的写法）能正确保存，不会误判为「暂无数据」。
+ * 返回值表示是否真的落盘成功（失败 / 无数据返回 false，且已 toast 过）。
  */
 
 import { useCallback, useState } from 'react';
-import { useProjectStore, buildProjectFromDataset } from '@/store/projectStore';
+import { useProjectStore, buildProjectFromDataset, generateId } from '@/store/projectStore';
 import { useUiStore } from '@/store/uiStore';
 import { degradationHint } from '@/data/repositories';
 import { getSharedRepositoryHandle } from '@/data/repositories/handle';
@@ -27,13 +32,29 @@ import { HogoError } from '@/data/errors';
 import type { Measurement } from '@/data/schema';
 import { makeBlobRef } from '@/data/storage/opfsStore';
 
+/** 保存选项。 */
+export interface PersistOptions {
+  /**
+   * 覆盖成功提示文案。
+   *
+   * 导入页用它把「导入成功」与「已保存」合并成一句话，避免同一动作弹两条
+   * 重复的成功提示（提示条数归本 hook 统一管理，页面不重复提示）。
+   */
+  successMessage?: string;
+}
+
 export interface ProjectPersistenceApi {
   /** 是否正在保存。 */
   saving: boolean;
   /** 最近一次保存时间（ISO）。 */
   lastSavedAt: string | null;
-  /** 保存当前项目。 */
-  persist: () => Promise<void>;
+  /**
+   * 保存当前项目。
+   *
+   * @param options 保存选项
+   * @returns 是否真的落盘成功（失败时已 toast，调用方无需重复提示）
+   */
+  persist: (options?: PersistOptions) => Promise<boolean>;
 }
 
 /** 把 HogoError / 普通 Error 转为可读提示。 */
@@ -53,9 +74,6 @@ function describeError(err: unknown): string {
  * @returns 持久化 API
  */
 export function useProjectPersistence(): ProjectPersistenceApi {
-  const dataset = useProjectStore((s) => s.dataset);
-  const projectName = useProjectStore((s) => s.projectName);
-  const project = useProjectStore((s) => s.project);
   const beginLoading = useUiStore((s) => s.beginLoading);
   const endLoading = useUiStore((s) => s.endLoading);
   const pushToast = useUiStore((s) => s.pushToast);
@@ -63,18 +81,22 @@ export function useProjectPersistence(): ProjectPersistenceApi {
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
 
   // 仓库句柄来自全应用共享单例（真实能力探测只做一次，后端选择会话内恒定）。
-  const persist = useCallback(async () => {
+  const persist = useCallback(async (options?: PersistOptions): Promise<boolean> => {
     setSaving(true);
     beginLoading();
     try {
+      // **实时读取 store**，而不是闭包捕获渲染时的快照：导入页在 `setDataset`
+      // 之后**同一帧内**就调用本方法，闭包里的 dataset 仍是导入前的 null ——
+      // 会直接走「暂无数据可保存」并静默不落盘。这是「导入后项目库为空」的
+      // 另一半原因（见记忆第二十一节）。
+      const { dataset, project, projectName } = useProjectStore.getState();
       if (!dataset) {
         pushToast('暂无数据可保存', 'warning');
-        return;
+        return false;
       }
       const handle = await getSharedRepositoryHandle();
-      // 进入 `??` 右分支时 project 必为 null，无既有 id 可复用；
-      // 与 projectStore.setDataset 的约定一致，统一用 'local' 作为本地项目 id。
-      const entity = project ?? buildProjectFromDataset('local', projectName, dataset);
+      // 正常路径下 `setDataset` 已建好项目实体（id 唯一），右分支仅作防御。
+      const entity = project ?? buildProjectFromDataset(generateId('proj'), projectName, dataset);
 
       // 先写大批量测量值（OPFS 优先，不可用时内联），再写项目元数据。
       const characteristics = await Promise.all(
@@ -104,18 +126,17 @@ export function useProjectPersistence(): ProjectPersistenceApi {
       rememberLastProject(persisted.id);
       setLastSavedAt(persisted.updatedAt);
       const hint = degradationHint(handle);
-      if (hint.length > 0) {
-        pushToast(`已保存项目「${projectName}」。${hint}`, 'warning');
-      } else {
-        pushToast(`已保存项目「${projectName}」`, 'success');
-      }
+      const base = options?.successMessage ?? `已保存项目「${projectName}」`;
+      pushToast(hint.length > 0 ? `${base}。${hint}` : base, hint.length > 0 ? 'warning' : 'success');
+      return true;
     } catch (err) {
       pushToast(`保存失败：${describeError(err)}`, 'error');
+      return false;
     } finally {
       setSaving(false);
       endLoading();
     }
-  }, [dataset, project, projectName, beginLoading, endLoading, pushToast]);
+  }, [beginLoading, endLoading, pushToast]);
 
   return { saving, lastSavedAt, persist };
 }
